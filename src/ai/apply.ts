@@ -1,3 +1,4 @@
+import { DEFAULT_LANE_WIDTH, arrangeInLanes, bandsOf, isStructural, lanesOf, layoutLanes, membership } from '../canvas/lanes';
 import { autoLayout } from '../canvas/layout';
 import { sortNodes } from '../export/convert';
 import { getDef, isAnnotation } from '../nodes/registry';
@@ -7,8 +8,12 @@ import { nowIso, uid } from '../types';
 export interface AiWorkflow {
   name: string;
   description: string;
+  /** Swimlanes (departments), left to right. */
+  lanes?: string[];
+  /** Section bands across all lanes, top to bottom. */
+  sections?: string[];
   variables: { name: string; type: VariableType; description: string }[];
-  nodes: { id: string; type: string; label: string; dataJson: string }[];
+  nodes: { id: string; type: string; label: string; lane?: string; section?: string; dataJson: string }[];
   edges: { source: string; sourceHandle: string; target: string; label: string }[];
   assumptions: string[];
 }
@@ -123,9 +128,53 @@ export function aiToDoc(ai: AiWorkflow, opts: { base?: WorkflowDoc; workflows: W
     variables.push({ name, type: v.type, default: prev?.default ?? null, ...(v.description ? { description: v.description } : {}) });
   }
 
-  // ── Layout ── keep existing positions; lay everything out if new blocks appeared.
+  // ── Layout ──
   let laid = nodes;
-  if (nodes.some((n) => !baseById.has(n.id))) {
+  let annotationsOut = annotations;
+  const laneNames = [...new Set((ai.lanes ?? []).map((l) => l.trim()).filter(Boolean))];
+  if (laneNames.length) {
+    // Swimlane diagram: build lanes/sections (reusing existing ones by name), then arrange inside them.
+    const LANE_COLORS = ['slate', 'blue', 'green', 'yellow', 'pink', 'orange'];
+    const oldLanes = new Map(annotations.filter((n) => n.type === 'lane').map((n) => [String(n.data.label), n]));
+    const oldBands = new Map(annotations.filter((n) => n.type === 'band').map((n) => [String(n.data.label), n]));
+    const origin = lanesOf(annotations)[0] ?? { x: 0 };
+    let x = origin.x;
+    const laneNodes: FlowNode[] = laneNames.map((name, i) => {
+      const prev = oldLanes.get(name);
+      const w = prev?.width ?? DEFAULT_LANE_WIDTH;
+      const node: FlowNode = { id: prev?.id ?? uid('a'), type: 'lane', position: { x, y: 0 }, width: w, height: 400, data: { label: name, color: prev?.data.color ?? LANE_COLORS[i % LANE_COLORS.length] } };
+      x += w;
+      return node;
+    });
+    const sectionNames = [...new Set((ai.sections ?? []).map((s) => s.trim()).filter(Boolean))];
+    const bandNodes: FlowNode[] = sectionNames.map((name, i) => {
+      const prev = oldBands.get(name);
+      return { id: prev?.id ?? uid('a'), type: 'band', position: { x: origin.x, y: 100000 + i * 10000 }, width: x - origin.x, height: 9000, data: { label: name, color: prev?.data.color ?? 'orange' } };
+    });
+    // Drop each block roughly into its lane / section so membership is clear, then arrange.
+    const laneOf = new Map(ai.nodes.map((n) => [idMap.get(n.id), n.lane ?? '']));
+    const sectionOf = new Map(ai.nodes.map((n) => [idMap.get(n.id), n.section ?? '']));
+    const placed = nodes.map((n, i) => {
+      const li = Math.max(0, laneNames.indexOf(laneOf.get(n.id) ?? ''));
+      const bi = sectionNames.indexOf(sectionOf.get(n.id) ?? '');
+      const lane = laneNodes[li];
+      return {
+        ...n,
+        parentId: undefined,
+        measured: estimate(n),
+        position: { x: lane.position.x + (lane.width! - 240) / 2, y: bi >= 0 ? bandNodes[bi].position.y + 100 + i : 100 + i * 10 },
+      };
+    });
+    const keepNotes = annotations.filter((n) => !isStructural(n));
+    const arranged = arrangeInLanes([...laneNodes, ...bandNodes, ...placed], edges);
+    const finalNodes = layoutLanes(arranged, arranged).map((n) => {
+      const { measured: _m, ...rest } = n;
+      return rest as FlowNode;
+    });
+    laid = finalNodes.filter((n) => !isStructural(n));
+    annotationsOut = [...finalNodes.filter(isStructural), ...keepNotes];
+  } else if (nodes.some((n) => !baseById.has(n.id))) {
+    // Keep existing positions; lay everything out if new blocks appeared.
     const first = nodes.find((n) => n.type === 'start') ?? nodes[0];
     const origin = first && baseById.get(first.id)?.position;
     const withSize = nodes.map((n) => ({ ...n, parentId: undefined, measured: estimate(n) }));
@@ -150,8 +199,9 @@ export function aiToDoc(ai: AiWorkflow, opts: { base?: WorkflowDoc; workflows: W
     createdAt: base?.createdAt ?? t,
     updatedAt: t,
     variables,
-    nodes: sortNodes([...annotations, ...laid]),
+    nodes: sortNodes([...annotationsOut, ...laid]),
     edges,
+    ...(laneNames.length ? { direction: 'TB' as const } : base?.direction ? { direction: base.direction } : {}),
   };
   return { doc, dropped };
 }
@@ -159,15 +209,20 @@ export function aiToDoc(ai: AiWorkflow, opts: { base?: WorkflowDoc; workflows: W
 /** The part of a workflow the model needs to see when updating it. */
 export function currentForModel(doc: WorkflowDoc) {
   const flow = doc.nodes.filter((n) => !isAnnotation(n.type));
+  const areas = membership(doc.nodes);
+  const laneName = new Map(areas.lanes.map((l) => [l.id, l.name]));
+  const bandName = new Map(bandsOf(doc.nodes).map((b) => [b.id, b.name]));
   return {
     name: doc.name,
     description: doc.description,
+    lanes: areas.lanes.map((l) => l.name),
+    sections: areas.bands.map((b) => b.name),
     variables: doc.variables.map((v) => ({ name: v.name, type: v.type, description: v.description ?? '' })),
     nodes: flow.map((n) => {
       const { label, ...data } = n.data;
       delete data.outcomes;
       delete data.workflowName;
-      return { id: n.id, type: n.type, label, data };
+      return { id: n.id, type: n.type, label, lane: laneName.get(areas.lane.get(n.id) ?? '') ?? '', section: bandName.get(areas.band.get(n.id) ?? '') ?? '', data };
     }),
     edges: doc.edges.map((e) => ({ source: e.source, sourceHandle: e.sourceHandle ?? 'out', target: e.target, label: typeof e.label === 'string' ? e.label : '' })),
   };

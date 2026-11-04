@@ -47,6 +47,19 @@ Clearing the browser's site data deletes the autosaves, so keep **Backup all** o
 - **Shortcuts**: Ctrl+Z / Ctrl+Y undo/redo, Ctrl+C / Ctrl+V copy/paste, Ctrl+D duplicate, Ctrl+A select all, Delete remove, Shift+drag box-select, scroll to pan, Ctrl+scroll to zoom.
 - **Arrange** auto-lays out the flow. **Valid / N errors** opens the validation list. Click an issue to jump to its block.
 
+## Swimlanes and sections (departments)
+
+Show who does each step and where work moves between departments, like a cross-functional process map.
+
+- **Add swimlane** (palette → *Lanes, Notes & Frames*, or the workflow panel) adds a column, e.g. Design, Procurement, Commercial, PM / Site, Accounts. Double-click a lane's title to rename it. Drag its right edge to resize it; the lanes to its right move along with their blocks. **Move left / right** in the panel reorders lanes.
+- **Add section** adds a horizontal band across all lanes (e.g. *Changes (VOs)*). Drag its title to move it, and its top or bottom edge to resize.
+- A block belongs to the lane (and section) its centre sits in. Drag it to another lane to hand the step to another department.
+- **Handoffs** (top bar) highlights every connection that crosses from one lane to another. The workflow panel lists them ("Design → Commercial: Release package → Set budget"), and each lane header shows *blocks · handoffs*.
+- With lanes, the flow reads **top to bottom** (Layout setting in the workflow panel), and **Arrange** lays blocks out inside their own lanes, with each section below the main flow.
+- In the JSON export, every node has `lane` / `section`, and the file lists `lanes`, `sections` and `handoffs`.
+- The AI **Prompt** creates lanes automatically when a process involves several departments.
+- Try **+ Add the swimlane example** on the home screen.
+
 ## Creating flows from a prompt (AI)
 
 Describe a process in plain words and Claude (`claude-opus-5-5`) draws it as a workflow.

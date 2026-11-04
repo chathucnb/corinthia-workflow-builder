@@ -1,9 +1,10 @@
-import { ArrowUpRight, Plus, Trash2, Workflow } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowUpRight, Columns3, Plus, Rows3, Trash2, Workflow } from 'lucide-react';
+import { handoffs as findHandoffs, lanesOf, membership, moveLane } from './lanes';
 import { useEffect, useState } from 'react';
 import { FieldEditor, VAR_TYPES } from '../nodes/fields';
 import { getDef } from '../nodes/registry';
 import { useWorkflow } from '../store/workflowStore';
-import type { FlowNode, Issue, Variable, VariableType, WorkflowSummary } from '../types';
+import type { FlowEdge, FlowNode, Issue, Variable, VariableType, WorkflowSummary } from '../types';
 
 const REF_KEYS = new Set(['var', 'variable', 'collection']);
 
@@ -97,11 +98,37 @@ function LinkList({ title, items, onOpen }: { title: string; items: WorkflowSumm
   );
 }
 
+/** "Design → Commercial: Release package → Set budget" lines for cross-lane connections. */
+function HandoffList({ nodes, edges, laneId, onSelect }: { nodes: FlowNode[]; edges: FlowEdge[]; laneId?: string; onSelect: (id: string) => void }) {
+  const lanes = new Map(lanesOf(nodes).map((l) => [l.id, l.name || 'Lane']));
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const list = findHandoffs(nodes, edges).filter((h) => !laneId || h.from === laneId || h.to === laneId);
+  if (!list.length) return <p className="text-xs text-slate-400">No connections cross between lanes yet.</p>;
+  return (
+    <ul className="space-y-1">
+      {list.map(({ edge, from, to }) => (
+        <li key={edge.id}>
+          <button className="w-full rounded px-1.5 py-1 text-left text-xs hover:bg-orange-50" onClick={() => onSelect(edge.target)}>
+            <span className="font-semibold text-orange-800">
+              {lanes.get(from)} → {lanes.get(to)}
+            </span>
+            <span className="block truncate text-slate-500">
+              {byId.get(edge.source)?.data.label} → {byId.get(edge.target)?.data.label}
+              {typeof edge.label === 'string' && edge.label ? ` (${edge.label})` : ''}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function WorkflowPanel({ issues, workflows, onOpenWorkflow }: { issues: Issue[]; workflows: WorkflowSummary[]; onOpenWorkflow: (id: string) => void }) {
   const doc = useWorkflow((s) => s.doc)!;
   const { setMeta, setVariables, setNodes } = useWorkflow.getState();
   const vars = doc.variables;
   const errors = issues.filter((i) => i.level === 'error').length;
+  const lanes = lanesOf(doc.nodes);
   const self = workflows.find((w) => w.id === doc.id);
   const uses = workflows.filter((w) => self?.refs.includes(w.id));
   const usedBy = workflows.filter((w) => w.id !== doc.id && w.refs.includes(doc.id));
@@ -157,6 +184,36 @@ function WorkflowPanel({ issues, workflows, onOpenWorkflow }: { issues: Issue[];
             />
           ))}
         </div>
+      </div>
+      <div className="space-y-2 border-t pt-3">
+        <span className="label mb-0">Layout</span>
+        <select className="input" value={doc.direction ?? 'LR'} onChange={(e) => setMeta({ direction: e.target.value as 'LR' | 'TB' })}>
+          <option value="LR">Flow left → right</option>
+          <option value="TB">Flow top → bottom (swimlanes)</option>
+        </select>
+        <div className="flex gap-1.5">
+          <button className="btn flex-1 justify-center" onClick={() => useWorkflow.getState().addNode('lane', { x: 0, y: 0 })}>
+            <Columns3 size={14} /> Add swimlane
+          </button>
+          <button
+            className="btn flex-1 justify-center"
+            onClick={() => {
+              const lanes = doc.nodes.filter((n) => n.type === 'lane');
+              const bottom = Math.max(0, ...lanes.map((l) => l.position.y + (l.height ?? 600)));
+              useWorkflow.getState().addNode('band', { x: 0, y: bottom + 40 });
+            }}
+          >
+            <Rows3 size={14} /> Add section
+          </button>
+        </div>
+        {lanes.length > 0 && (
+          <div>
+            <div className="mb-1 mt-2 text-xs font-medium text-slate-500">
+              {lanes.length} lanes · {findHandoffs(doc.nodes, doc.edges).length} handoffs between them
+            </div>
+            <HandoffList nodes={doc.nodes} edges={doc.edges} onSelect={(id) => useWorkflow.getState().selectOnly(id)} />
+          </div>
+        )}
       </div>
       <div className="space-y-3 border-t pt-3">
         <span className="label mb-0">Linked workflows</span>
@@ -236,6 +293,28 @@ export function Inspector({ workflows, issues, onOpenWorkflow }: { workflows: Wo
               </div>
             ))}
           </div>
+        )}
+        {node.type === 'lane' && (
+          <div className="space-y-2 border-t pt-3">
+            <div className="flex gap-1.5">
+              <button className="btn flex-1 justify-center" title="Move this lane (and its blocks) left" onClick={() => useWorkflow.getState().setNodes(moveLane(doc.nodes, node.id, -1))}>
+                <ArrowLeft size={14} /> Move left
+              </button>
+              <button className="btn flex-1 justify-center" title="Move this lane (and its blocks) right" onClick={() => useWorkflow.getState().setNodes(moveLane(doc.nodes, node.id, 1))}>
+                Move right <ArrowRight size={14} />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">
+              {[...membership(doc.nodes).lane.values()].filter((l) => l === node.id).length} items in this lane. Drag the lane's right edge to resize it. Deleting a lane keeps its blocks.
+            </p>
+            <span className="label mb-0">Handoffs in and out</span>
+            <HandoffList nodes={doc.nodes} edges={doc.edges} laneId={node.id} onSelect={(id) => useWorkflow.getState().selectOnly(id)} />
+          </div>
+        )}
+        {node.type === 'band' && (
+          <p className="border-t pt-3 text-xs text-slate-500">
+            A section across all lanes. Blocks inside it are exported with this section. Drag its title to move it, and its top or bottom edge to resize.
+          </p>
         )}
         <div className="border-t pt-2 font-mono text-[10px] text-slate-400">id: {node.id}</div>
       </div>

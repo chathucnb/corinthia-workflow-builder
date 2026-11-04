@@ -1,6 +1,7 @@
 import { getDef, isAnnotation } from '../nodes/registry';
 import type { Issue, RuleGroup, WorkflowDoc, WorkflowSummary } from '../types';
 import { reaches, sameOutcomes } from './links';
+import { membership } from '../canvas/lanes';
 
 const NO_VALUE_OPS = new Set(['isEmpty', 'isNotEmpty', 'isTrue', 'isFalse']);
 
@@ -135,6 +136,13 @@ export function validate(doc: WorkflowDoc, workflows?: WorkflowSummary[]): Issue
       }
     }
   }
+
+  // Swimlanes: every block should belong to a department.
+  const areas = membership(doc.nodes);
+  if (areas.lanes.length)
+    for (const n of nodes)
+      if (!areas.lane.has(n.id))
+        issues.push({ level: 'warning', nodeId: n.id, message: `"${name(n.id)}" is outside every swimlane` });
 
   return issues;
 }

@@ -325,6 +325,9 @@
           "label": "Pour complete"
         }
       ],
+      "lanes": [],
+      "sections": [],
+      "handoffs": [],
       "dependencies": [
         {
           "id": "wf_concrete_pour",
@@ -726,6 +729,9 @@
           "label": ""
         }
       ],
+      "lanes": [],
+      "sections": [],
+      "handoffs": [],
       "dependencies": [],
       "annotations": [
         {

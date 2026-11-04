@@ -62,6 +62,57 @@
         "$ref": "#/$defs/edge"
       }
     },
+    "lanes": {
+      "type": "array",
+      "default": [],
+      "description": "Swimlanes (departments / roles), left to right. Each node.lane refers to one of these ids.",
+      "items": {
+        "$ref": "#/$defs/area"
+      }
+    },
+    "sections": {
+      "type": "array",
+      "default": [],
+      "description": "Section bands across all lanes (e.g. \"Changes\"), top to bottom. node.section refers to one of these ids.",
+      "items": {
+        "$ref": "#/$defs/area"
+      }
+    },
+    "handoffs": {
+      "type": "array",
+      "default": [],
+      "description": "Edges where work moves from one lane to another (derived from node lanes, for convenience).",
+      "items": {
+        "type": "object",
+        "required": [
+          "edge",
+          "from",
+          "to"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "edge": {
+            "type": "string",
+            "description": "Edge id"
+          },
+          "from": {
+            "type": "string",
+            "description": "Lane id"
+          },
+          "to": {
+            "type": "string",
+            "description": "Lane id"
+          }
+        }
+      }
+    },
+    "direction": {
+      "enum": [
+        "LR",
+        "TB"
+      ],
+      "description": "Canvas direction (canvas-only)."
+    },
     "dependencies": {
       "type": "array",
       "default": [],
@@ -152,6 +203,25 @@
         }
       }
     },
+    "area": {
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        }
+      }
+    },
     "port": {
       "type": "object",
       "required": [
@@ -217,6 +287,14 @@
         },
         "data": {
           "type": "object"
+        },
+        "lane": {
+          "type": "string",
+          "description": "Id of the swimlane (department) the block sits in; absent if none"
+        },
+        "section": {
+          "type": "string",
+          "description": "Id of the section band the block sits in; absent if none"
         },
         "outputs": {
           "type": "array",
@@ -1192,7 +1270,9 @@
           "enum": [
             "sticky",
             "frame",
-            "text"
+            "text",
+            "lane",
+            "band"
           ]
         },
         "label": {

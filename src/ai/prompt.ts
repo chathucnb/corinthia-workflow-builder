@@ -8,10 +8,12 @@ const VAR_TYPES = ['string', 'number', 'boolean', 'date', 'list', 'file'];
 export const OUTPUT_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['name', 'description', 'variables', 'nodes', 'edges', 'assumptions'],
+  required: ['name', 'description', 'lanes', 'sections', 'variables', 'nodes', 'edges', 'assumptions'],
   properties: {
     name: { type: 'string', description: 'Short workflow name' },
     description: { type: 'string', description: 'One or two sentences' },
+    lanes: { type: 'array', items: { type: 'string' }, description: 'Swimlanes (departments / roles), left to right; [] for a single-team process' },
+    sections: { type: 'array', items: { type: 'string' }, description: 'Optional horizontal sections across all lanes, top to bottom; usually []' },
     variables: {
       type: 'array',
       items: {
@@ -30,11 +32,13 @@ export const OUTPUT_SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['id', 'type', 'label', 'dataJson'],
+        required: ['id', 'type', 'label', 'lane', 'section', 'dataJson'],
         properties: {
           id: { type: 'string' },
           type: { type: 'string', enum: FLOW_DEFS.map((d) => d.type) },
           label: { type: 'string', description: 'Short name shown on the block' },
+          lane: { type: 'string', description: 'One of "lanes", or "" when lanes is empty' },
+          section: { type: 'string', description: 'One of "sections", or ""' },
           dataJson: { type: 'string', description: 'The block data object, JSON-encoded as a string' },
         },
       },
@@ -122,8 +126,13 @@ Common roles (use these names when they fit, otherwise any sensible role): ${ROL
 - dataJson must be a JSON object string with only the data keys listed for that block type.
 - Keep it as simple as the described process allows; do not invent steps the user would not expect. Note anything you assumed in "assumptions".
 
+# Swimlanes
+- When work moves between departments or roles (e.g. Design, Procurement, Commercial, PM / Site, Accounts), list them in "lanes" in a sensible left-to-right order (usually the order work first reaches them) and set every block's "lane". Handoffs between lanes are what the diagram is for, so put each block in the department that does it.
+- Use "sections" only for a clearly separate part of the process that runs across departments (e.g. "Changes (VOs)"), and set "section" on its blocks. Otherwise sections is [] and section is "".
+- For a process done by one team, lanes is [] and lane is "".
+
 # Updating an existing workflow
-When the request includes a current workflow, return the complete updated workflow (not a diff). Keep the ids, labels and data of blocks that do not need to change, change only what the request asks for, and use new ids for new blocks.`;
+When the request includes a current workflow, return the complete updated workflow (not a diff). Keep the ids, labels, lanes and data of blocks that do not need to change, change only what the request asks for, and use new ids for new blocks. Keep the existing lanes and sections unless the request changes them.`;
 
 /** Per-request user message: the description plus saved workflows and (optionally) the current flow. */
 export function buildUserMessage(opts: {

@@ -2,7 +2,7 @@ import Ajv2020 from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 import { describe, expect, it } from 'vitest';
 import { fromJson } from './convert';
-import { exampleBundle, exampleWorkflow } from './examples';
+import { exampleBundle, exampleSwimlanes, exampleWorkflow } from './examples';
 import { bundleJsonSchema, workflowJsonSchema } from './spec';
 import { validate } from './validate';
 
@@ -19,6 +19,12 @@ describe('published JSON Schema', () => {
 
   it('accepts the example bundle', () => {
     expect(checkBundle(exampleBundle()), JSON.stringify(checkBundle.errors)).toBe(true);
+  });
+
+  it('accepts the swimlane example', () => {
+    const wf = exampleSwimlanes();
+    expect(checkWorkflow(wf), JSON.stringify(checkWorkflow.errors)).toBe(true);
+    expect(wf.lanes.map((l) => l.id)).toContain('lane_design');
   });
 
   it('accepts list defaults and typed Set Variable values', () => {

@@ -4,7 +4,7 @@
  */
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { exampleBundle, exampleWorkflow } from '../src/export/examples';
+import { exampleBundle, exampleSwimlanes, exampleWorkflow } from '../src/export/examples';
 import { SCHEMA_VERSION } from '../src/export/schema';
 import { blockCatalog, bundleJsonSchema, workflowJsonSchema } from '../src/export/spec';
 
@@ -20,6 +20,7 @@ write('bundle.schema.json', bundleJsonSchema());
 write('block-types.json', catalog);
 write('examples/concrete-pour-approval.json', exampleWorkflow());
 write('examples/slab-cycle-with-linked.bundle.json', exampleBundle());
+write('examples/package-procurement-swimlanes.json', exampleSwimlanes());
 
 const md = (s: string) => s.replace(/\|/g, '\\|');
 const blockRows = catalog.blocks
@@ -41,6 +42,7 @@ Workflows designed in the **Corinthia Workflow Builder** export as JSON files in
 | \`block-types.json\` | Machine-readable list of every block type: outputs, data fields, defaults. |
 | \`examples/concrete-pour-approval.json\` | A real single-workflow export (approvals, inspection, condition, loops back for rework). |
 | \`examples/slab-cycle-with-linked.bundle.json\` | A real bundle: a parent workflow (parallel work, switch, approval, **linked workflow**) plus the workflow it links to. |
+| \`examples/package-procurement-swimlanes.json\` | A **swimlane** workflow: five departments (lanes), a "Changes (VOs)" section, and the handoffs between departments. |
 
 ## How to tell the two file kinds apart
 
@@ -68,6 +70,11 @@ Workflows designed in the **Corinthia Workflow Builder** export as JSON files in
 
   "edges": [ { "id": "e10", "source": "n6", "sourceHandle": "true", "target": "n7", "label": "True" } ],
 
+  "lanes":    [ { "id": "lane_design", "name": "Design", "color": "slate" } ],      // departments, left → right
+  "sections": [ { "id": "band_changes_vos", "name": "Changes (VOs)" } ],           // optional rows across lanes
+  "handoffs": [ { "edge": "e2", "from": "lane_design", "to": "lane_commercial" } ], // edges crossing lanes
+  // each node may also carry  "lane": "<lane id>"  and  "section": "<section id>"
+
   "dependencies": [ { "id": "wf_…", "name": "…" } ],   // workflows linked via "subworkflow" nodes
 
   "annotations": [ … ],           // canvas-only: sticky notes, frames, text (ignore when executing)
@@ -75,7 +82,7 @@ Workflows designed in the **Corinthia Workflow Builder** export as JSON files in
 }
 \`\`\`
 
-**Only \`variables\`, \`nodes\`, \`edges\` and \`dependencies\` matter for execution.** Keep \`annotations\` and \`layout\` if you want to send the file back to the designer unchanged; the builder's **Import** accepts the same format.
+**Only \`variables\`, \`nodes\`, \`edges\` and \`dependencies\` matter for execution.** \`lanes\`, \`sections\`, \`handoffs\` and \`node.lane\` / \`node.section\` say **which department owns each step** and where work changes hands. Use them for routing tasks, dashboards and responsibility reports. Keep \`annotations\` and \`layout\` if you want to send the file back to the designer unchanged; the builder's **Import** accepts the same format.
 
 ### Graph rules (a workflow that passes the builder's validation)
 

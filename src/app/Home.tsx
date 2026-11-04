@@ -1,4 +1,4 @@
-import { Archive, Copy, FileUp, Pencil, Plus, Sparkles, Trash2, Wand2, Workflow } from 'lucide-react';
+import { Archive, Columns3, Copy, FileUp, Pencil, Plus, Sparkles, Trash2, Wand2, Workflow } from 'lucide-react';
 import { withAssumptionNote } from '../ai/apply';
 import { PromptDialog } from '../ai/PromptDialog';
 import { useEffect, useState } from 'react';
@@ -15,6 +15,7 @@ import {
 import { newWorkflow } from '../store/workflowStore';
 import type { WorkflowSummary } from '../types';
 import { sampleWorkflow } from './sample';
+import { swimlaneSample } from './sampleLanes';
 
 const fmt = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -31,8 +32,8 @@ export function Home({ onOpen, toast }: { onOpen: (id: string) => void; toast: (
     await saveWorkflow(wf);
     onOpen(wf.id);
   };
-  const addSample = async () => {
-    const wf = sampleWorkflow();
+  const addSample = async (lanes = false) => {
+    const wf = lanes ? swimlaneSample() : sampleWorkflow();
     await saveWorkflow(wf);
     onOpen(wf.id);
   };
@@ -111,8 +112,11 @@ export function Home({ onOpen, toast }: { onOpen: (id: string) => void; toast: (
               <button className="btn" onClick={create}>
                 <Plus size={15} /> Start from scratch
               </button>
-              <button className="btn" onClick={addSample}>
+              <button className="btn" onClick={() => addSample()}>
                 <Sparkles size={15} /> Open example: Concrete Pour Approval
+              </button>
+              <button className="btn" onClick={() => addSample(true)}>
+                <Columns3 size={15} /> Example with swimlanes
               </button>
             </div>
           </div>
@@ -149,9 +153,14 @@ export function Home({ onOpen, toast }: { onOpen: (id: string) => void; toast: (
                 </div>
               ))}
             </div>
-            <button className="mt-6 text-sm text-teal-700 hover:underline" onClick={addSample}>
-              + Add the example workflow
-            </button>
+            <div className="mt-6 flex gap-5 text-sm">
+              <button className="text-teal-700 hover:underline" onClick={() => addSample()}>
+                + Add the example workflow
+              </button>
+              <button className="text-teal-700 hover:underline" onClick={() => addSample(true)}>
+                + Add the swimlane example
+              </button>
+            </div>
           </>
         )}
       </div>

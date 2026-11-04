@@ -5,6 +5,7 @@ import {
   CircleStop,
   ClipboardCheck,
   ClipboardList,
+  Columns3,
   FileText,
   Frame,
   GitBranch,
@@ -13,6 +14,7 @@ import {
   ListTodo,
   Play,
   Repeat,
+  Rows3,
   Sigma,
   Split,
   StickyNote,
@@ -525,6 +527,30 @@ const DEFS: NodeDef[] = [
 
   // ───────────── Annotation ─────────────
   {
+    type: 'lane',
+    category: 'annotation',
+    label: 'Swimlane',
+    description: 'A column for one department or role; blocks inside belong to it',
+    icon: Columns3,
+    color: '#0f766e',
+    hasInput: false,
+    outputs: () => [],
+    defaults: () => ({ color: 'slate' }),
+    fields: [{ key: 'color', label: 'Colour', kind: 'color' }],
+  },
+  {
+    type: 'band',
+    category: 'annotation',
+    label: 'Section band',
+    description: 'A horizontal section across all lanes (e.g. Changes)',
+    icon: Rows3,
+    color: '#ea580c',
+    hasInput: false,
+    outputs: () => [],
+    defaults: () => ({ color: 'orange' }),
+    fields: [{ key: 'color', label: 'Colour', kind: 'color' }],
+  },
+  {
     type: 'sticky',
     category: 'annotation',
     label: 'Sticky Note',
@@ -572,7 +598,7 @@ export const CATEGORIES: { id: Category; label: string }[] = [
   { id: 'logic', label: 'Logic' },
   { id: 'data', label: 'Data' },
   { id: 'construction', label: 'Construction' },
-  { id: 'annotation', label: 'Notes & Frames' },
+  { id: 'annotation', label: 'Lanes, Notes & Frames' },
 ];
 
 export const isAnnotation = (type?: string) => !!type && REGISTRY[type]?.category === 'annotation';

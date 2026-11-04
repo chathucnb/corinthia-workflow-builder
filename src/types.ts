@@ -25,6 +25,8 @@ export interface WorkflowDoc {
   variables: Variable[];
   nodes: FlowNode[];
   edges: FlowEdge[];
+  /** Canvas flow direction: left→right (default) or top→bottom (lane diagrams). */
+  direction?: 'LR' | 'TB';
 }
 
 export interface WorkflowSummary {

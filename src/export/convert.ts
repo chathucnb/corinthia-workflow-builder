@@ -1,3 +1,4 @@
+import { handoffs as findHandoffs, membership } from '../canvas/lanes';
 import { getDef, isAnnotation } from '../nodes/registry';
 import type { FlowEdge, FlowNode, WorkflowDoc } from '../types';
 import { nowIso, uid } from '../types';
@@ -22,6 +23,7 @@ export function toJson(doc: WorkflowDoc): WorkflowExport {
   const flowNodes = doc.nodes.filter((n) => !isAnnotation(n.type));
   const annotations = doc.nodes.filter((n) => isAnnotation(n.type));
   const flowIds = new Set(flowNodes.map((n) => n.id));
+  const areas = membership(doc.nodes);
 
   const layout: WorkflowExport['layout'] = {};
   for (const n of flowNodes) {
@@ -47,6 +49,8 @@ export function toJson(doc: WorkflowDoc): WorkflowExport {
         label,
         data,
         outputs: def ? def.outputs(n.data).map((p) => ({ ...p })) : [],
+        ...(areas.lane.has(n.id) ? { lane: areas.lane.get(n.id) } : {}),
+        ...(areas.band.has(n.id) ? { section: areas.band.get(n.id) } : {}),
       };
     }),
     edges: doc.edges
@@ -58,6 +62,14 @@ export function toJson(doc: WorkflowDoc): WorkflowExport {
         target: e.target,
         label: typeof e.label === 'string' ? e.label : '',
       })),
+    lanes: areas.lanes.map((l) => ({ id: l.id, name: l.name, color: l.color })),
+    sections: areas.bands.map((b) => ({ id: b.id, name: b.name, color: b.color })),
+    handoffs: findHandoffs(doc.nodes, doc.edges.filter((e) => flowIds.has(e.source) && flowIds.has(e.target))).map((h) => ({
+      edge: h.edge.id,
+      from: h.from,
+      to: h.to,
+    })),
+    ...(doc.direction ? { direction: doc.direction } : {}),
     dependencies: Object.values(
       Object.fromEntries(
         flowNodes
@@ -71,7 +83,7 @@ export function toJson(doc: WorkflowDoc): WorkflowExport {
       const h = n.height ?? n.measured?.height;
       return {
         id: n.id,
-        type: n.type as 'sticky' | 'frame' | 'text',
+        type: n.type as 'sticky' | 'frame' | 'text' | 'lane' | 'band',
         label,
         data,
         position: { x: round(n.position.x), y: round(n.position.y) },
@@ -85,7 +97,8 @@ export function toJson(doc: WorkflowDoc): WorkflowExport {
 
 /** Frames must precede their children in the React Flow node array. */
 export function sortNodes(nodes: FlowNode[]): FlowNode[] {
-  return [...nodes].sort((a, b) => Number(b.type === 'frame') - Number(a.type === 'frame'));
+  const rank = (t?: string) => (t === 'lane' ? 0 : t === 'band' ? 1 : t === 'frame' ? 2 : 3);
+  return [...nodes].sort((a, b) => rank(a.type) - rank(b.type));
 }
 
 /** Clean JSON → internal document. Throws a readable error on invalid input. */
@@ -188,6 +201,7 @@ export function fromJson(input: unknown): WorkflowDoc {
     variables: wf.variables.map((v) => ({ ...v, default: v.default ?? null })),
     nodes: sortNodes(nodes),
     edges,
+    ...(wf.direction ? { direction: wf.direction } : {}),
   };
 }
 

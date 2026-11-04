@@ -1,10 +1,23 @@
 import { SAMPLE_JSON } from '../app/sample';
+import { SWIMLANE_SAMPLE } from '../app/sampleLanes';
+import { aiToDoc } from '../ai/apply';
 import { getDef } from '../nodes/registry';
 import { fromJson, toJson } from './convert';
 import { endOutcomes } from './links';
 import { SCHEMA_VERSION, type WorkflowBundle, type WorkflowExport } from './schema';
 
 const STAMP = '2026-11-04T09:00:00.000Z';
+
+/** The swimlane example (five departments + a Changes section), as the tool exports it. */
+export function exampleSwimlanes(): WorkflowExport {
+  const doc = aiToDoc(SWIMLANE_SAMPLE, { workflows: [] }).doc;
+  // Stable ids so the published file doesn't change on every build.
+  const ids = new Map<string, string>();
+  doc.nodes.filter((n) => n.type === 'lane' || n.type === 'band').forEach((n) => ids.set(n.id, `${n.type}_${String(n.data.label).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+$/, '')}`));
+  doc.edges.forEach((e, i) => ids.set(e.id, `e${i + 1}`));
+  const remap = JSON.stringify({ ...doc, id: 'wf_package_procurement', createdAt: STAMP, updatedAt: STAMP }).replace(/"(a_[0-9a-f]{10}|e_[0-9a-f]{10})"/g, (m, id) => (ids.has(id) ? `"${ids.get(id)}"` : m));
+  return toJson(JSON.parse(remap));
+}
 
 /** The "Concrete Pour Approval" example, exactly as the tool exports it. */
 export function exampleWorkflow(): WorkflowExport {
@@ -78,6 +91,9 @@ export function exampleBundle(): WorkflowBundle {
       e('e11', 's8', 'rejected', 's11', 'Rejected'),
       ...outcomes.map((o, i) => e(`e${12 + i}`, 's9', o.id, 's10', o.label)),
     ],
+    lanes: [],
+    sections: [],
+    handoffs: [],
     dependencies: [{ id: pour.id, name: pour.name }],
     annotations: [],
     layout: Object.fromEntries(nodes.map((n, i) => [n.id, { x: i * 280, y: 100 }])),

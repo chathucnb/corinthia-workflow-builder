@@ -7,6 +7,7 @@ import {
   type XYPosition,
 } from '@xyflow/react';
 import { create } from 'zustand';
+import { DEFAULT_LANE_WIDTH, LANE_HEADER, isStructural, layoutLanes, lanesOf } from '../canvas/lanes';
 import { sortNodes } from '../export/convert';
 import { getDef } from '../nodes/registry';
 import type { FlowEdge, FlowNode, NodeData, Variable, WorkflowDoc } from '../types';
@@ -40,7 +41,7 @@ interface State {
   updateNodeData: (id: string, patch: Partial<NodeData>) => void;
   updateEdge: (id: string, patch: Partial<FlowEdge>) => void;
   setNodes: (nodes: FlowNode[], record?: boolean) => void;
-  setMeta: (patch: Partial<Pick<WorkflowDoc, 'name' | 'description'>>) => void;
+  setMeta: (patch: Partial<Pick<WorkflowDoc, 'name' | 'description' | 'direction'>>) => void;
   setVariables: (vars: Variable[]) => void;
   bumpVersion: () => void;
 
@@ -65,6 +66,9 @@ const clean = (n: FlowNode): FlowNode => {
   return rest as FlowNode;
 };
 
+/** Sorts nodes and keeps swimlanes / bands aligned after any change. */
+const finalize = (prev: FlowNode[], next: FlowNode[]) => layoutLanes(prev, sortNodes(next));
+
 const touch = (doc: WorkflowDoc, patch: Partial<WorkflowDoc>): WorkflowDoc => ({ ...doc, ...patch, updatedAt: nowIso() });
 
 /** Remove edges whose source handle no longer exists on the node (e.g. a deleted switch case). */
@@ -87,12 +91,14 @@ export const useWorkflow = create<State>()((set, get) => ({
 
   load: (doc) => {
     lastKey = undefined;
-    set({ doc: { ...doc, nodes: sortNodes(doc.nodes.map((n) => ({ ...clean(n), selected: false }))) }, past: [], future: [], dirty: 0 });
+    const nodes = sortNodes(doc.nodes.map((n) => ({ ...clean(n), selected: false })));
+    set({ doc: { ...doc, nodes: layoutLanes(nodes, nodes) }, past: [], future: [], dirty: 0 });
   },
   close: () => set({ doc: null, past: [], future: [] }),
   replaceDoc: (doc) => {
     get().snapshot();
-    set((s) => ({ doc: { ...doc, id: s.doc?.id ?? doc.id, nodes: sortNodes(doc.nodes.map(clean)) }, dirty: s.dirty + 1 }));
+    const nodes = sortNodes(doc.nodes.map(clean));
+    set((s) => ({ doc: { ...doc, id: s.doc?.id ?? doc.id, nodes: layoutLanes(nodes, nodes) }, dirty: s.dirty + 1 }));
   },
 
   snapshot: (key) => {
@@ -140,7 +146,8 @@ export const useWorkflow = create<State>()((set, get) => ({
       (c) => c.type === 'remove' || c.type === 'add' || (c.type === 'position' && c.dragging === false) || (c.type === 'dimensions' && c.resizing),
     );
     if (changes.some((c) => c.type === 'remove')) get().snapshot();
-    const nodes = applyNodeChanges(changes, doc.nodes);
+    const applied = applyNodeChanges(changes, doc.nodes);
+    const nodes = meaningful ? layoutLanes(doc.nodes, applied) : applied;
     set((s) => ({
       doc: meaningful ? touch(doc, { nodes }) : { ...doc, nodes },
       dirty: meaningful ? s.dirty + 1 : s.dirty,
@@ -180,20 +187,38 @@ export const useWorkflow = create<State>()((set, get) => ({
     const def = getDef(type);
     if (!doc || !def) return '';
     get().snapshot();
-    const id = uid(type === 'frame' || type === 'sticky' || type === 'text' ? 'a' : 'n');
+    const id = uid(def.category === 'annotation' ? 'a' : 'n');
     const size =
-      type === 'frame' ? { width: 480, height: 320 } : type === 'sticky' ? { width: 200, height: 160 } : {};
+      type === 'frame' ? { width: 480, height: 320 } : type === 'sticky' ? { width: 200, height: 160 } : type === 'band' ? { height: 260 } : {};
+    const lanes = lanesOf(doc.nodes);
+    let label = type === 'text' ? 'Heading' : type === 'frame' ? 'Group' : type === 'sticky' ? '' : def.label;
+    if (type === 'lane') {
+      // New lanes are added at the right end; the first one starts left of the flow.
+      const content = doc.nodes.filter((n) => !isStructural(n));
+      const last = lanes[lanes.length - 1];
+      position = last
+        ? { x: last.x + last.w, y: doc.nodes.find((n) => n.id === last.id)!.position.y }
+        : {
+            x: content.length ? Math.min(...content.map((n) => n.position.x)) - 40 : position.x,
+            y: content.length ? Math.min(...content.map((n) => n.position.y)) - LANE_HEADER - 24 : position.y,
+          };
+      label = `Department ${lanes.length + 1}`;
+    }
+    if (type === 'band') label = 'Section';
     const node: FlowNode = {
       id,
       type,
       position,
-      data: { label: type === 'text' ? 'Heading' : type === 'frame' ? 'Group' : type === 'sticky' ? '' : def.label, ...def.defaults() },
+      data: { label, ...def.defaults() },
       selected: true,
+      ...(type === 'lane' ? { width: DEFAULT_LANE_WIDTH } : {}),
       ...size,
       ...extra,
     };
-    const nodes = sortNodes([...doc.nodes.map((n) => (n.selected ? { ...n, selected: false } : n)), node]);
-    set((s) => ({ doc: touch(doc, { nodes }), dirty: s.dirty + 1 }));
+    const nodes = finalize(doc.nodes, [...doc.nodes.map((n) => (n.selected ? { ...n, selected: false } : n)), node]);
+    // Lane diagrams read top to bottom.
+    const direction = type === 'lane' && !lanes.length ? 'TB' : doc.direction;
+    set((s) => ({ doc: touch(doc, { nodes, direction }), dirty: s.dirty + 1 }));
     return id;
   },
   updateNodeData: (id, patch) => {
@@ -214,7 +239,7 @@ export const useWorkflow = create<State>()((set, get) => ({
     const { doc } = get();
     if (!doc) return;
     if (record) get().snapshot();
-    set((s) => ({ doc: touch(doc, { nodes: sortNodes(nodes) }), dirty: s.dirty + 1 }));
+    set((s) => ({ doc: touch(doc, { nodes: finalize(doc.nodes, nodes) }), dirty: s.dirty + 1 }));
   },
   setMeta: (patch) => {
     const { doc } = get();
@@ -251,7 +276,7 @@ export const useWorkflow = create<State>()((set, get) => ({
         return n;
       });
     const edges = doc.edges.filter((e) => !e.selected && !ids.has(e.source) && !ids.has(e.target));
-    set((s) => ({ doc: touch(doc, { nodes, edges }), dirty: s.dirty + 1 }));
+    set((s) => ({ doc: touch(doc, { nodes: finalize(doc.nodes, nodes), edges }), dirty: s.dirty + 1 }));
   },
   copySelected: () => {
     const { doc } = get();
@@ -289,7 +314,7 @@ export const useWorkflow = create<State>()((set, get) => ({
       target: map.get(e.target)!,
       selected: false,
     }));
-    const nodes = sortNodes([...doc.nodes.map((n) => ({ ...n, selected: false })), ...pasted]);
+    const nodes = finalize(doc.nodes, [...doc.nodes.map((n) => ({ ...n, selected: false })), ...pasted]);
     set((s) => ({ doc: touch(doc, { nodes, edges: [...doc.edges, ...edges] }), dirty: s.dirty + 1 }));
   },
   insertCopy: (src, at) => {
@@ -317,7 +342,7 @@ export const useWorkflow = create<State>()((set, get) => ({
       .map((e) => ({ ...structuredClone(e), id: uid('e'), source: map.get(e.source)!, target: map.get(e.target)!, selected: false }));
     const have = new Set(doc.variables.map((v) => v.name));
     const variables = [...doc.variables, ...src.variables.filter((v) => !have.has(v.name))];
-    const all = sortNodes([...doc.nodes.map((n) => ({ ...n, selected: false })), ...copied]);
+    const all = finalize(doc.nodes, [...doc.nodes.map((n) => ({ ...n, selected: false })), ...copied]);
     set((s) => ({ doc: touch(doc, { nodes: all, edges: [...doc.edges, ...edges], variables }), dirty: s.dirty + 1 }));
   },
   selectOnly: (id) => {

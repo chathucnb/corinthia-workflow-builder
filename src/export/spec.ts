@@ -90,6 +90,30 @@ export function workflowJsonSchema() {
       variables: { type: 'array', items: { $ref: '#/$defs/variable' } },
       nodes: { type: 'array', items: { $ref: '#/$defs/node' } },
       edges: { type: 'array', items: { $ref: '#/$defs/edge' } },
+      lanes: {
+        type: 'array',
+        default: [],
+        description: 'Swimlanes (departments / roles), left to right. Each node.lane refers to one of these ids.',
+        items: { $ref: '#/$defs/area' },
+      },
+      sections: {
+        type: 'array',
+        default: [],
+        description: 'Section bands across all lanes (e.g. "Changes"), top to bottom. node.section refers to one of these ids.',
+        items: { $ref: '#/$defs/area' },
+      },
+      handoffs: {
+        type: 'array',
+        default: [],
+        description: 'Edges where work moves from one lane to another (derived from node lanes, for convenience).',
+        items: {
+          type: 'object',
+          required: ['edge', 'from', 'to'],
+          additionalProperties: false,
+          properties: { edge: { type: 'string', description: 'Edge id' }, from: { type: 'string', description: 'Lane id' }, to: { type: 'string', description: 'Lane id' } },
+        },
+      },
+      direction: { enum: ['LR', 'TB'], description: 'Canvas direction (canvas-only).' },
       dependencies: {
         type: 'array',
         default: [],
@@ -120,6 +144,12 @@ export function workflowJsonSchema() {
           description: { type: 'string' },
         },
       },
+      area: {
+        type: 'object',
+        required: ['id', 'name'],
+        additionalProperties: false,
+        properties: { id: { type: 'string' }, name: { type: 'string' }, color: { type: 'string' } },
+      },
       port: {
         type: 'object',
         required: ['id', 'label'],
@@ -136,6 +166,8 @@ export function workflowJsonSchema() {
           category: { enum: ['logic', 'data', 'construction'] },
           label: { type: 'string' },
           data: { type: 'object' },
+          lane: { type: 'string', description: 'Id of the swimlane (department) the block sits in; absent if none' },
+          section: { type: 'string', description: 'Id of the section band the block sits in; absent if none' },
           outputs: {
             type: 'array',
             items: { $ref: '#/$defs/port' },
@@ -209,7 +241,7 @@ export function workflowJsonSchema() {
         additionalProperties: false,
         properties: {
           id: { type: 'string' },
-          type: { enum: ['sticky', 'frame', 'text'] },
+          type: { enum: ['sticky', 'frame', 'text', 'lane', 'band'] },
           label: { type: 'string' },
           data: { type: 'object' },
           position: { $ref: '#/$defs/xy' },

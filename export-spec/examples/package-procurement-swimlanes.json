@@ -1,0 +1,1126 @@
+{
+  "schemaVersion": "1.0",
+  "id": "wf_package_procurement",
+  "name": "Package Procurement (swimlanes)",
+  "description": "How a package moves from Design through Procurement / Commercial to site and payment, and where changes (VOs) enter.",
+  "version": 1,
+  "createdAt": "2026-11-04T09:00:00.000Z",
+  "updatedAt": "2026-11-04T09:00:00.000Z",
+  "variables": [
+    {
+      "name": "packageType",
+      "type": "string",
+      "default": null,
+      "description": "direct | milestone"
+    },
+    {
+      "name": "contractSigned",
+      "type": "boolean",
+      "default": null,
+      "description": "Contract signed before the change?"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "s",
+      "type": "start",
+      "category": "logic",
+      "label": "Release package",
+      "data": {
+        "trigger": "manual"
+      },
+      "outputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "lane": "lane_design"
+    },
+    {
+      "id": "docs",
+      "type": "document",
+      "category": "construction",
+      "label": "DWG, specs, schedule, SOW",
+      "data": {
+        "docType": "Tender package",
+        "action": "upload",
+        "required": true,
+        "description": ""
+      },
+      "outputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "lane": "lane_design"
+    },
+    {
+      "id": "budget",
+      "type": "approval",
+      "category": "construction",
+      "label": "Set budget",
+      "data": {
+        "role": "Commercial Manager",
+        "slaHours": 48,
+        "instructions": "",
+        "requireComment": false
+      },
+      "outputs": [
+        {
+          "id": "approved",
+          "label": "Approved"
+        },
+        {
+          "id": "rejected",
+          "label": "Rejected"
+        }
+      ],
+      "lane": "lane_commercial"
+    },
+    {
+      "id": "type",
+      "type": "switch",
+      "category": "logic",
+      "label": "Package type?",
+      "data": {
+        "variable": "packageType",
+        "cases": [
+          {
+            "id": "case_direct",
+            "value": "direct",
+            "label": "Direct purchase"
+          },
+          {
+            "id": "case_ms",
+            "value": "milestone",
+            "label": "Milestone / progress"
+          }
+        ],
+        "hasDefault": false
+      },
+      "outputs": [
+        {
+          "id": "case_direct",
+          "label": "Direct purchase"
+        },
+        {
+          "id": "case_ms",
+          "label": "Milestone / progress"
+        }
+      ],
+      "lane": "lane_commercial"
+    },
+    {
+      "id": "boq",
+      "type": "task",
+      "category": "logic",
+      "label": "BOQ + pre-qualify",
+      "data": {
+        "assigneeRole": "Procurement Officer",
+        "description": "",
+        "durationHours": null
+      },
+      "outputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "lane": "lane_procurement"
+    },
+    {
+      "id": "itt1",
+      "type": "assign",
+      "category": "construction",
+      "label": "ITT to 3+ pre-qualified",
+      "data": {
+        "role": "Procurement Officer",
+        "department": "",
+        "task": "Issue ITT, level bids",
+        "dueInDays": null
+      },
+      "outputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "lane": "lane_procurement"
+    },
+    {
+      "id": "award1",
+      "type": "approval",
+      "category": "construction",
+      "label": "Award (direct)",
+      "data": {
+        "role": "CEO",
+        "slaHours": 24,
+        "instructions": "",
+        "requireComment": false
+      },
+      "outputs": [
+        {
+          "id": "approved",
+          "label": "Approved"
+        },
+        {
+          "id": "rejected",
+          "label": "Rejected"
+        }
+      ],
+      "lane": "lane_procurement"
+    },
+    {
+      "id": "tpa",
+      "type": "document",
+      "category": "construction",
+      "label": "TPA + PO signed",
+      "data": {
+        "docType": "Purchase order",
+        "action": "sign",
+        "required": true,
+        "description": ""
+      },
+      "outputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "lane": "lane_procurement"
+    },
+    {
+      "id": "itt2",
+      "type": "assign",
+      "category": "construction",
+      "label": "ITT to 3+ vendors",
+      "data": {
+        "role": "Quantity Surveyor",
+        "department": "",
+        "task": "Tech check and levelling",
+        "dueInDays": null
+      },
+      "outputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "lane": "lane_commercial"
+    },
+    {
+      "id": "award2",
+      "type": "approval",
+      "category": "construction",
+      "label": "Award by band",
+      "data": {
+        "role": "Commercial Manager",
+        "slaHours": 24,
+        "instructions": "",
+        "requireComment": false
+      },
+      "outputs": [
+        {
+          "id": "approved",
+          "label": "Approved"
+        },
+        {
+          "id": "rejected",
+          "label": "Rejected"
+        }
+      ],
+      "lane": "lane_commercial"
+    },
+    {
+      "id": "po",
+      "type": "document",
+      "category": "construction",
+      "label": "PO + contract signed",
+      "data": {
+        "docType": "Contract",
+        "action": "sign",
+        "required": true,
+        "description": ""
+      },
+      "outputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "lane": "lane_commercial"
+    },
+    {
+      "id": "adv",
+      "type": "task",
+      "category": "logic",
+      "label": "Pay advance / deposit",
+      "data": {
+        "assigneeRole": "Accounts",
+        "description": "Against security / advance invoice",
+        "durationHours": null
+      },
+      "outputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "lane": "lane_accounts"
+    },
+    {
+      "id": "shop",
+      "type": "approval",
+      "category": "construction",
+      "label": "Approve shop drawings + samples",
+      "data": {
+        "role": "Head of Design",
+        "slaHours": 24,
+        "instructions": "",
+        "requireComment": true
+      },
+      "outputs": [
+        {
+          "id": "approved",
+          "label": "Approved"
+        },
+        {
+          "id": "rejected",
+          "label": "Rejected"
+        }
+      ],
+      "lane": "lane_design"
+    },
+    {
+      "id": "prod",
+      "type": "task",
+      "category": "logic",
+      "label": "Production",
+      "data": {
+        "assigneeRole": "Supplier",
+        "description": "",
+        "durationHours": null
+      },
+      "outputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "lane": "lane_procurement"
+    },
+    {
+      "id": "deliver",
+      "type": "task",
+      "category": "logic",
+      "label": "Deliver to site, raise MIR",
+      "data": {
+        "assigneeRole": "Procurement Officer",
+        "description": "",
+        "durationHours": null
+      },
+      "outputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "lane": "lane_procurement"
+    },
+    {
+      "id": "mir",
+      "type": "inspection",
+      "category": "construction",
+      "label": "Pass MIR, install",
+      "data": {
+        "assigneeRole": "Site Engineer",
+        "checklist": [
+          "Matches approved sample",
+          "Installed"
+        ],
+        "photosRequired": true
+      },
+      "outputs": [
+        {
+          "id": "pass",
+          "label": "Pass"
+        },
+        {
+          "id": "fail",
+          "label": "Fail"
+        }
+      ],
+      "lane": "lane_pm_site"
+    },
+    {
+      "id": "claim",
+      "type": "approval",
+      "category": "construction",
+      "label": "Validate vendor claim",
+      "data": {
+        "role": "Quantity Surveyor",
+        "slaHours": 24,
+        "instructions": "",
+        "requireComment": false
+      },
+      "outputs": [
+        {
+          "id": "approved",
+          "label": "Approved"
+        },
+        {
+          "id": "rejected",
+          "label": "Rejected"
+        }
+      ],
+      "lane": "lane_commercial"
+    },
+    {
+      "id": "pay",
+      "type": "task",
+      "category": "logic",
+      "label": "Pay claim / balance",
+      "data": {
+        "assigneeRole": "Accounts",
+        "description": "",
+        "durationHours": null
+      },
+      "outputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "lane": "lane_accounts"
+    },
+    {
+      "id": "end",
+      "type": "end",
+      "category": "logic",
+      "label": "Package closed",
+      "data": {
+        "status": "completed"
+      },
+      "outputs": [],
+      "lane": "lane_accounts"
+    },
+    {
+      "id": "vo1",
+      "type": "task",
+      "category": "logic",
+      "label": "Design change",
+      "data": {
+        "assigneeRole": "Head of Design",
+        "description": "Revised drawings / specs",
+        "durationHours": null
+      },
+      "outputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "lane": "lane_design",
+      "section": "band_changes_vos"
+    },
+    {
+      "id": "contracted",
+      "type": "condition",
+      "category": "logic",
+      "label": "Contracted?",
+      "data": {
+        "condition": {
+          "logic": "AND",
+          "rules": [
+            {
+              "var": "contractSigned",
+              "op": "isTrue"
+            }
+          ]
+        }
+      },
+      "outputs": [
+        {
+          "id": "true",
+          "label": "True"
+        },
+        {
+          "id": "false",
+          "label": "False"
+        }
+      ],
+      "lane": "lane_design",
+      "section": "band_changes_vos"
+    },
+    {
+      "id": "retender",
+      "type": "task",
+      "category": "logic",
+      "label": "Re-tender / re-plan",
+      "data": {
+        "assigneeRole": "Procurement Officer",
+        "description": "",
+        "durationHours": null
+      },
+      "outputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "lane": "lane_procurement",
+      "section": "band_changes_vos"
+    },
+    {
+      "id": "price",
+      "type": "task",
+      "category": "logic",
+      "label": "Price the VO",
+      "data": {
+        "assigneeRole": "Quantity Surveyor",
+        "description": "Cost + time impact",
+        "durationHours": null
+      },
+      "outputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "lane": "lane_commercial",
+      "section": "band_changes_vos"
+    },
+    {
+      "id": "decide",
+      "type": "approval",
+      "category": "construction",
+      "label": "Decide VO",
+      "data": {
+        "role": "Commercial Manager",
+        "slaHours": 24,
+        "instructions": "",
+        "requireComment": false
+      },
+      "outputs": [
+        {
+          "id": "approved",
+          "label": "Approved"
+        },
+        {
+          "id": "rejected",
+          "label": "Rejected"
+        }
+      ],
+      "lane": "lane_commercial",
+      "section": "band_changes_vos"
+    },
+    {
+      "id": "newval",
+      "type": "document",
+      "category": "construction",
+      "label": "New contract value",
+      "data": {
+        "docType": "Variation order",
+        "action": "generate",
+        "required": true,
+        "description": ""
+      },
+      "outputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "lane": "lane_commercial",
+      "section": "band_changes_vos"
+    },
+    {
+      "id": "forecast",
+      "type": "notification",
+      "category": "construction",
+      "label": "Cash forecast update",
+      "data": {
+        "recipientRole": "Accounts",
+        "channel": "inApp",
+        "message": "Commitments updated by an approved VO"
+      },
+      "outputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "lane": "lane_accounts",
+      "section": "band_changes_vos"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "s",
+      "sourceHandle": "out",
+      "target": "docs",
+      "label": ""
+    },
+    {
+      "id": "e2",
+      "source": "docs",
+      "sourceHandle": "out",
+      "target": "budget",
+      "label": ""
+    },
+    {
+      "id": "e3",
+      "source": "budget",
+      "sourceHandle": "approved",
+      "target": "type",
+      "label": "Approved"
+    },
+    {
+      "id": "e4",
+      "source": "budget",
+      "sourceHandle": "rejected",
+      "target": "docs",
+      "label": "Rejected"
+    },
+    {
+      "id": "e5",
+      "source": "type",
+      "sourceHandle": "case_direct",
+      "target": "boq",
+      "label": "Direct purchase"
+    },
+    {
+      "id": "e6",
+      "source": "type",
+      "sourceHandle": "case_ms",
+      "target": "itt2",
+      "label": "Milestone / progress"
+    },
+    {
+      "id": "e7",
+      "source": "boq",
+      "sourceHandle": "out",
+      "target": "itt1",
+      "label": ""
+    },
+    {
+      "id": "e8",
+      "source": "itt1",
+      "sourceHandle": "out",
+      "target": "award1",
+      "label": ""
+    },
+    {
+      "id": "e9",
+      "source": "award1",
+      "sourceHandle": "approved",
+      "target": "tpa",
+      "label": "Approved"
+    },
+    {
+      "id": "e10",
+      "source": "award1",
+      "sourceHandle": "rejected",
+      "target": "itt1",
+      "label": "Rejected"
+    },
+    {
+      "id": "e11",
+      "source": "tpa",
+      "sourceHandle": "out",
+      "target": "adv",
+      "label": ""
+    },
+    {
+      "id": "e12",
+      "source": "itt2",
+      "sourceHandle": "out",
+      "target": "award2",
+      "label": ""
+    },
+    {
+      "id": "e13",
+      "source": "award2",
+      "sourceHandle": "approved",
+      "target": "po",
+      "label": "Approved"
+    },
+    {
+      "id": "e14",
+      "source": "award2",
+      "sourceHandle": "rejected",
+      "target": "itt2",
+      "label": "Rejected"
+    },
+    {
+      "id": "e15",
+      "source": "po",
+      "sourceHandle": "out",
+      "target": "adv",
+      "label": ""
+    },
+    {
+      "id": "e16",
+      "source": "adv",
+      "sourceHandle": "out",
+      "target": "shop",
+      "label": ""
+    },
+    {
+      "id": "e17",
+      "source": "shop",
+      "sourceHandle": "approved",
+      "target": "prod",
+      "label": "Approved"
+    },
+    {
+      "id": "e18",
+      "source": "shop",
+      "sourceHandle": "rejected",
+      "target": "vo1",
+      "label": "Change needed"
+    },
+    {
+      "id": "e19",
+      "source": "prod",
+      "sourceHandle": "out",
+      "target": "deliver",
+      "label": ""
+    },
+    {
+      "id": "e20",
+      "source": "deliver",
+      "sourceHandle": "out",
+      "target": "mir",
+      "label": ""
+    },
+    {
+      "id": "e21",
+      "source": "mir",
+      "sourceHandle": "pass",
+      "target": "claim",
+      "label": "Pass"
+    },
+    {
+      "id": "e22",
+      "source": "mir",
+      "sourceHandle": "fail",
+      "target": "deliver",
+      "label": "Fail"
+    },
+    {
+      "id": "e23",
+      "source": "claim",
+      "sourceHandle": "approved",
+      "target": "pay",
+      "label": "Approved"
+    },
+    {
+      "id": "e24",
+      "source": "claim",
+      "sourceHandle": "rejected",
+      "target": "mir",
+      "label": "Rejected"
+    },
+    {
+      "id": "e25",
+      "source": "pay",
+      "sourceHandle": "out",
+      "target": "end",
+      "label": ""
+    },
+    {
+      "id": "e26",
+      "source": "vo1",
+      "sourceHandle": "out",
+      "target": "contracted",
+      "label": ""
+    },
+    {
+      "id": "e27",
+      "source": "contracted",
+      "sourceHandle": "true",
+      "target": "price",
+      "label": "Yes"
+    },
+    {
+      "id": "e28",
+      "source": "contracted",
+      "sourceHandle": "false",
+      "target": "retender",
+      "label": "No"
+    },
+    {
+      "id": "e29",
+      "source": "retender",
+      "sourceHandle": "out",
+      "target": "boq",
+      "label": ""
+    },
+    {
+      "id": "e30",
+      "source": "price",
+      "sourceHandle": "out",
+      "target": "decide",
+      "label": ""
+    },
+    {
+      "id": "e31",
+      "source": "decide",
+      "sourceHandle": "approved",
+      "target": "newval",
+      "label": "Agreed"
+    },
+    {
+      "id": "e32",
+      "source": "decide",
+      "sourceHandle": "rejected",
+      "target": "shop",
+      "label": "Rejected"
+    },
+    {
+      "id": "e33",
+      "source": "newval",
+      "sourceHandle": "out",
+      "target": "forecast",
+      "label": ""
+    },
+    {
+      "id": "e34",
+      "source": "forecast",
+      "sourceHandle": "out",
+      "target": "prod",
+      "label": ""
+    }
+  ],
+  "lanes": [
+    {
+      "id": "lane_design",
+      "name": "Design",
+      "color": "slate"
+    },
+    {
+      "id": "lane_procurement",
+      "name": "Procurement",
+      "color": "blue"
+    },
+    {
+      "id": "lane_commercial",
+      "name": "Commercial",
+      "color": "green"
+    },
+    {
+      "id": "lane_pm_site",
+      "name": "PM / Site",
+      "color": "yellow"
+    },
+    {
+      "id": "lane_accounts",
+      "name": "Accounts",
+      "color": "pink"
+    }
+  ],
+  "sections": [
+    {
+      "id": "band_changes_vos",
+      "name": "Changes (VOs)",
+      "color": "orange"
+    }
+  ],
+  "handoffs": [
+    {
+      "edge": "e2",
+      "from": "lane_design",
+      "to": "lane_commercial"
+    },
+    {
+      "edge": "e4",
+      "from": "lane_commercial",
+      "to": "lane_design"
+    },
+    {
+      "edge": "e5",
+      "from": "lane_commercial",
+      "to": "lane_procurement"
+    },
+    {
+      "edge": "e11",
+      "from": "lane_procurement",
+      "to": "lane_accounts"
+    },
+    {
+      "edge": "e15",
+      "from": "lane_commercial",
+      "to": "lane_accounts"
+    },
+    {
+      "edge": "e16",
+      "from": "lane_accounts",
+      "to": "lane_design"
+    },
+    {
+      "edge": "e17",
+      "from": "lane_design",
+      "to": "lane_procurement"
+    },
+    {
+      "edge": "e20",
+      "from": "lane_procurement",
+      "to": "lane_pm_site"
+    },
+    {
+      "edge": "e21",
+      "from": "lane_pm_site",
+      "to": "lane_commercial"
+    },
+    {
+      "edge": "e22",
+      "from": "lane_pm_site",
+      "to": "lane_procurement"
+    },
+    {
+      "edge": "e23",
+      "from": "lane_commercial",
+      "to": "lane_accounts"
+    },
+    {
+      "edge": "e24",
+      "from": "lane_commercial",
+      "to": "lane_pm_site"
+    },
+    {
+      "edge": "e27",
+      "from": "lane_design",
+      "to": "lane_commercial"
+    },
+    {
+      "edge": "e28",
+      "from": "lane_design",
+      "to": "lane_procurement"
+    },
+    {
+      "edge": "e32",
+      "from": "lane_commercial",
+      "to": "lane_design"
+    },
+    {
+      "edge": "e33",
+      "from": "lane_commercial",
+      "to": "lane_accounts"
+    },
+    {
+      "edge": "e34",
+      "from": "lane_accounts",
+      "to": "lane_procurement"
+    }
+  ],
+  "direction": "TB",
+  "dependencies": [],
+  "annotations": [
+    {
+      "id": "lane_design",
+      "type": "lane",
+      "label": "Design",
+      "data": {
+        "color": "slate"
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "size": {
+        "width": 300,
+        "height": 3204
+      }
+    },
+    {
+      "id": "lane_procurement",
+      "type": "lane",
+      "label": "Procurement",
+      "data": {
+        "color": "blue"
+      },
+      "position": {
+        "x": 300,
+        "y": 0
+      },
+      "size": {
+        "width": 300,
+        "height": 3204
+      }
+    },
+    {
+      "id": "lane_commercial",
+      "type": "lane",
+      "label": "Commercial",
+      "data": {
+        "color": "green"
+      },
+      "position": {
+        "x": 600,
+        "y": 0
+      },
+      "size": {
+        "width": 300,
+        "height": 3204
+      }
+    },
+    {
+      "id": "lane_pm_site",
+      "type": "lane",
+      "label": "PM / Site",
+      "data": {
+        "color": "yellow"
+      },
+      "position": {
+        "x": 900,
+        "y": 0
+      },
+      "size": {
+        "width": 300,
+        "height": 3204
+      }
+    },
+    {
+      "id": "lane_accounts",
+      "type": "lane",
+      "label": "Accounts",
+      "data": {
+        "color": "pink"
+      },
+      "position": {
+        "x": 1200,
+        "y": 0
+      },
+      "size": {
+        "width": 300,
+        "height": 3204
+      }
+    },
+    {
+      "id": "band_changes_vos",
+      "type": "band",
+      "label": "Changes (VOs)",
+      "data": {
+        "color": "orange"
+      },
+      "position": {
+        "x": 0,
+        "y": 2300
+      },
+      "size": {
+        "width": 1500,
+        "height": 864
+      }
+    }
+  ],
+  "layout": {
+    "s": {
+      "x": 30,
+      "y": 88
+    },
+    "docs": {
+      "x": 30,
+      "y": 204
+    },
+    "budget": {
+      "x": 630,
+      "y": 320
+    },
+    "type": {
+      "x": 630,
+      "y": 492
+    },
+    "boq": {
+      "x": 330,
+      "y": 664
+    },
+    "itt1": {
+      "x": 330,
+      "y": 780
+    },
+    "award1": {
+      "x": 330,
+      "y": 896
+    },
+    "tpa": {
+      "x": 330,
+      "y": 1068
+    },
+    "itt2": {
+      "x": 630,
+      "y": 780
+    },
+    "award2": {
+      "x": 630,
+      "y": 896
+    },
+    "po": {
+      "x": 630,
+      "y": 1068
+    },
+    "adv": {
+      "x": 1230,
+      "y": 1184
+    },
+    "shop": {
+      "x": 30,
+      "y": 1300
+    },
+    "prod": {
+      "x": 330,
+      "y": 1472
+    },
+    "deliver": {
+      "x": 330,
+      "y": 1588
+    },
+    "mir": {
+      "x": 930,
+      "y": 1704
+    },
+    "claim": {
+      "x": 630,
+      "y": 1876
+    },
+    "pay": {
+      "x": 1230,
+      "y": 2048
+    },
+    "end": {
+      "x": 1230,
+      "y": 2164
+    },
+    "vo1": {
+      "x": 30,
+      "y": 2356
+    },
+    "contracted": {
+      "x": 30,
+      "y": 2472
+    },
+    "retender": {
+      "x": 330,
+      "y": 2644
+    },
+    "price": {
+      "x": 630,
+      "y": 2644
+    },
+    "decide": {
+      "x": 630,
+      "y": 2760
+    },
+    "newval": {
+      "x": 630,
+      "y": 2932
+    },
+    "forecast": {
+      "x": 1230,
+      "y": 3048
+    }
+  }
+}

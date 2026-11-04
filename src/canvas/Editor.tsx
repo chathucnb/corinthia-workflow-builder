@@ -12,6 +12,7 @@ import {
 } from '@xyflow/react';
 import {
   ArrowLeft,
+  ArrowLeftRight,
   Braces,
   CheckCircle2,
   Cloud,
@@ -29,13 +30,14 @@ import { PromptDialog } from '../ai/PromptDialog';
 import { parseImport, toBundle, toJson } from '../export/convert';
 import { endOutcomes, sameOutcomes, withDependencies } from '../export/links';
 import { validate } from '../export/validate';
-import { IssuesContext, nodeTypes } from '../nodes/nodes';
+import { DirectionContext, IssuesContext, LaneStatsContext, nodeTypes } from '../nodes/nodes';
 import { getDef, isAnnotation } from '../nodes/registry';
 import { downloadText, fileNameFor, loadAllWorkflows, pickTextFile, saveToDisk, saveWorkflow, summarize } from '../store/persistence';
 import { useWorkflow } from '../store/workflowStore';
 import type { FlowNode, Issue, WorkflowDoc } from '../types';
 import { Inspector } from './Inspector';
 import { JsonDrawer, type DrawerTab } from './JsonDrawer';
+import { arrangeInLanes, handoffs as findHandoffs, isStructural, lanesOf, membership } from './lanes';
 import { autoLayout } from './layout';
 import { DND_TYPE, DND_WF, Palette } from './Palette';
 
@@ -129,23 +131,42 @@ function EditorInner({ onBack, toast }: { onBack: () => void; toast: (m: string)
   }, [issues]);
   const json = useMemo(() => (drawer === 'json' ? JSON.stringify(toJson(doc), null, 2) : ''), [drawer, doc]);
 
+  // ── Swimlanes: which blocks hand work to another lane ──
+  const [showHandoffs, setShowHandoffs] = useState(false);
+  const hasLanes = useMemo(() => doc.nodes.some((n) => n.type === 'lane'), [doc.nodes]);
+  const laneInfo = useMemo(() => {
+    if (!hasLanes) return { cross: new Set<string>(), stats: new Map<string, { blocks: number; handoffs: number }>() };
+    const { lanes, lane } = membership(doc.nodes);
+    const list = findHandoffs(doc.nodes, doc.edges);
+    const stats = new Map(lanes.map((l) => [l.id, { blocks: 0, handoffs: 0 }]));
+    doc.nodes.forEach((n) => !isAnnotation(n.type) && lane.has(n.id) && stats.get(lane.get(n.id)!)!.blocks++);
+    list.forEach((h) => {
+      stats.get(h.from)!.handoffs++;
+      stats.get(h.to)!.handoffs++;
+    });
+    return { cross: new Set(list.map((h) => h.edge.id)), stats };
+  }, [hasLanes, doc.nodes, doc.edges]);
+  const flowNodes = useMemo(() => doc.nodes.map((n) => (n.type === 'lane' && n.draggable !== false ? { ...n, draggable: false } : n)), [doc.nodes]);
+
   // ── Edges rendering ──
   const edges = useMemo<Edge[]>(
     () =>
       doc.edges.map((e) => {
-        const color = BRANCH_COLORS[e.sourceHandle ?? ''] ?? '#64748b';
+        const cross = laneInfo.cross.has(e.id);
+        const color = showHandoffs && cross ? '#ea580c' : BRANCH_COLORS[e.sourceHandle ?? ''] ?? '#64748b';
         return {
           ...e,
           type: 'smoothstep',
+          animated: showHandoffs && cross,
           markerEnd: { type: MarkerType.ArrowClosed, color, width: 18, height: 18 },
-          style: { stroke: color },
+          style: { stroke: color, strokeWidth: showHandoffs && cross ? 2.5 : undefined, opacity: showHandoffs && !cross ? 0.25 : 1 },
           labelStyle: { fontSize: 11, fontWeight: 600, fill: color },
           labelBgStyle: { fill: '#fff' },
           labelBgPadding: [4, 2] as [number, number],
           labelBgBorderRadius: 4,
         };
       }),
-    [doc.edges],
+    [doc.edges, laneInfo, showHandoffs],
   );
 
   // ── Frames: put dropped/dragged blocks inside the frame under them ──
@@ -211,7 +232,7 @@ function EditorInner({ onBack, toast }: { onBack: () => void; toast: (m: string)
     const nodes = store().doc!.nodes;
     let changed = false;
     const next = nodes.map((n) => {
-      if (!dragged.some((d) => d.id === n.id) || n.type === 'frame') return n;
+      if (!dragged.some((d) => d.id === n.id) || n.type === 'frame' || isStructural(n)) return n;
       const internal = rf.getInternalNode(n.id);
       if (!internal) return n;
       const abs = internal.internals.positionAbsolute;
@@ -286,7 +307,7 @@ function EditorInner({ onBack, toast }: { onBack: () => void; toast: (m: string)
       else if (mod && k === 'a') {
         e.preventDefault();
         const d = store().doc!;
-        store().setNodes(d.nodes.map((n) => ({ ...n, selected: true })), false);
+        store().setNodes(d.nodes.map((n) => ({ ...n, selected: !isStructural(n) })), false);
       } else if (k === 'delete' || k === 'backspace') store().deleteSelected();
     };
     window.addEventListener('keydown', onKey);
@@ -323,14 +344,24 @@ function EditorInner({ onBack, toast }: { onBack: () => void; toast: (m: string)
         </button>
         <button
           className="btn"
-          title="Auto-arrange blocks"
+          title={hasLanes ? 'Arrange blocks top-to-bottom inside their lanes' : 'Auto-arrange blocks'}
           onClick={() => {
-            store().setNodes(autoLayout(store().doc!.nodes, store().doc!.edges));
+            const d = store().doc!;
+            store().setNodes(lanesOf(d.nodes).length ? arrangeInLanes(d.nodes, d.edges) : autoLayout(d.nodes, d.edges));
             setTimeout(() => rf.fitView({ duration: 300 }), 50);
           }}
         >
           <LayoutDashboard size={15} /> Arrange
         </button>
+        {hasLanes && (
+          <button
+            className={`btn ${showHandoffs ? 'border-orange-400 bg-orange-50 text-orange-800' : ''}`}
+            title="Highlight connections that hand work from one lane (department) to another"
+            onClick={() => setShowHandoffs((v) => !v)}
+          >
+            <ArrowLeftRight size={15} /> Handoffs {laneInfo.cross.size}
+          </button>
+        )}
         <button className={`btn ${errors ? 'text-red-700' : 'text-emerald-700'}`} onClick={() => setDrawer('issues')}>
           <ShieldCheck size={15} /> {errors ? `${errors} error${errors > 1 ? 's' : ''}` : 'Valid'}
         </button>
@@ -350,8 +381,10 @@ function EditorInner({ onBack, toast }: { onBack: () => void; toast: (m: string)
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="relative min-h-0 flex-1" ref={wrapper} onDragOver={(e) => (e.preventDefault(), (e.dataTransfer.dropEffect = 'move'))} onDrop={onDrop}>
             <IssuesContext.Provider value={issueMap}>
+             <DirectionContext.Provider value={doc.direction ?? 'LR'}>
+             <LaneStatsContext.Provider value={laneInfo.stats}>
               <ReactFlow<FlowNode>
-                nodes={doc.nodes}
+                nodes={flowNodes}
                 edges={edges}
                 nodeTypes={nodeTypes}
                 onNodesChange={store().onNodesChange}
@@ -380,8 +413,15 @@ function EditorInner({ onBack, toast }: { onBack: () => void; toast: (m: string)
               >
                 <Background variant={BackgroundVariant.Dots} gap={20} size={1.2} color="#cbd5e1" />
                 <Controls showInteractive={false} />
-                <MiniMap pannable zoomable nodeColor={(n) => getDef(n.type)?.color ?? '#94a3b8'} nodeStrokeWidth={2} />
+                <MiniMap
+                  pannable
+                  zoomable
+                  nodeColor={(n) => (n.type === 'lane' ? '#f1f5f9' : n.type === 'band' ? '#ffedd5' : getDef(n.type)?.color ?? '#94a3b8')}
+                  nodeStrokeWidth={2}
+                />
               </ReactFlow>
+             </LaneStatsContext.Provider>
+             </DirectionContext.Provider>
             </IssuesContext.Provider>
             {aiNotes && (
               <div className="absolute left-1/2 top-4 z-10 w-[min(560px,90%)] -translate-x-1/2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm shadow">
