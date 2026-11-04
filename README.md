@@ -11,6 +11,20 @@ npm run dev        # http://localhost:5173
 
 Other scripts: `npm run build` (typecheck + production build into `dist/`), `npm test` (export/import and validation tests).
 
+## Live site
+
+**https://chathucnb.github.io/corinthia-workflow-builder/** (GitHub Pages, public).
+
+To publish changes, run:
+
+```bash
+npm run deploy
+```
+
+This runs the tests, builds the site for `/corinthia-workflow-builder/` and pushes it to the `gh-pages` branch. GitHub Pages updates within a minute or two. Push the source as usual with `git push`.
+
+The hosted site only serves the app. Each person's workflows are stored in their own browser (IndexedDB) on their own computer. Nothing is uploaded to GitHub, and people do not see each other's workflows. Share workflows as JSON files (Save file / Import, or Backup all).
+
 ## Where data is saved
 
 Everything stays on this computer. Nothing is sent anywhere.
