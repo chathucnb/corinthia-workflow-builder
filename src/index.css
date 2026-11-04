@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; }
+body { @apply bg-slate-50 text-slate-800 antialiased; }
+
+.react-flow__edge-path { stroke-width: 1.75; }
+.react-flow__handle { width: 10px; height: 10px; border: 2px solid white; }
+.react-flow__node.selected > .wf-node { @apply ring-2 ring-teal-500 ring-offset-1; }
+.react-flow__node-frame { z-index: -1 !important; }
+
+.input { @apply w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500; }
+.btn { @apply inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none; }
+.btn-primary { @apply inline-flex items-center gap-1.5 rounded-md bg-teal-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-teal-800; }
+.btn-icon { @apply inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:pointer-events-none; }
+.label { @apply mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500; }

@@ -1,0 +1,77 @@
+import { cloneDoc, fromJson } from '../export/convert';
+import { SCHEMA_VERSION } from '../export/schema';
+import type { WorkflowDoc } from '../types';
+
+/** Example construction process shipped with the tool. */
+const SAMPLE = {
+  schemaVersion: SCHEMA_VERSION,
+  id: 'wf_sample',
+  name: 'Concrete Pour Approval',
+  description: 'Request → method statement → consultant approval → pre-pour inspection → pour.',
+  version: 1,
+  updatedAt: '2026-11-04T00:00:00.000Z',
+  variables: [
+    { name: 'pourVolume', type: 'number', default: null, description: 'Volume in m³' },
+    { name: 'pourLocation', type: 'string', default: null },
+    { name: 'pourDate', type: 'date', default: null },
+  ],
+  nodes: [
+    { id: 'n1', type: 'start', category: 'logic', label: 'Pour requested', data: { trigger: 'form' }, outputs: [] },
+    {
+      id: 'n2', type: 'form', category: 'data', label: 'Pour request form', outputs: [],
+      data: {
+        assigneeRole: 'Site Engineer',
+        fields: [
+          { name: 'volume', label: 'Volume (m³)', type: 'number', required: true, variable: 'pourVolume' },
+          { name: 'location', label: 'Grid / level', type: 'string', required: true, variable: 'pourLocation' },
+          { name: 'date', label: 'Planned date', type: 'date', required: true, variable: 'pourDate' },
+        ],
+      },
+    },
+    { id: 'n3', type: 'document', category: 'construction', label: 'Method statement', outputs: [], data: { docType: 'Method Statement', action: 'upload', required: true, description: '' } },
+    { id: 'n4', type: 'approval', category: 'construction', label: 'Consultant approval', outputs: [], data: { role: 'Consultant', slaHours: 48, instructions: 'Review the method statement for {{pourLocation}}.', requireComment: true } },
+    { id: 'n10', type: 'notification', category: 'construction', label: 'Ask for revision', outputs: [], data: { recipientRole: 'Site Engineer', channel: 'email', message: 'Method statement for {{pourLocation}} was rejected. Please revise.' } },
+    { id: 'n5', type: 'inspection', category: 'construction', label: 'Pre-pour inspection', outputs: [], data: { assigneeRole: 'QA/QC Engineer', checklist: ['Rebar spacing & cover', 'Formwork alignment & props', 'Embedded items / sleeves', 'Cleanliness of formwork'], photosRequired: true } },
+    { id: 'n11', type: 'assign', category: 'construction', label: 'Fix defects', outputs: [], data: { role: 'Foreman', department: 'Civil', task: 'Rectify items failed in pre-pour inspection', dueInDays: 1 } },
+    { id: 'n6', type: 'condition', category: 'logic', label: 'Large pour?', outputs: [], data: { condition: { logic: 'AND', rules: [{ var: 'pourVolume', op: '>', value: 50 }] } } },
+    { id: 'n7', type: 'notification', category: 'construction', label: 'Alert safety officer', outputs: [], data: { recipientRole: 'Safety Officer', channel: 'inApp', message: 'Large pour ({{pourVolume}} m³) planned on {{pourDate}}.' } },
+    { id: 'n8', type: 'task', category: 'logic', label: 'Pour concrete', outputs: [], data: { assigneeRole: 'Foreman', description: 'Pour, compact and cure as per method statement.', durationHours: 8 } },
+    { id: 'n9', type: 'end', category: 'logic', label: 'Pour complete', outputs: [], data: { status: 'completed' } },
+  ],
+  edges: [
+    { id: 'e1', source: 'n1', sourceHandle: 'out', target: 'n2', label: '' },
+    { id: 'e2', source: 'n2', sourceHandle: 'out', target: 'n3', label: '' },
+    { id: 'e3', source: 'n3', sourceHandle: 'out', target: 'n4', label: '' },
+    { id: 'e4', source: 'n4', sourceHandle: 'approved', target: 'n5', label: 'Approved' },
+    { id: 'e5', source: 'n4', sourceHandle: 'rejected', target: 'n10', label: 'Rejected' },
+    { id: 'e6', source: 'n10', sourceHandle: 'out', target: 'n3', label: '' },
+    { id: 'e7', source: 'n5', sourceHandle: 'pass', target: 'n6', label: 'Pass' },
+    { id: 'e8', source: 'n5', sourceHandle: 'fail', target: 'n11', label: 'Fail' },
+    { id: 'e9', source: 'n11', sourceHandle: 'out', target: 'n5', label: '' },
+    { id: 'e10', source: 'n6', sourceHandle: 'true', target: 'n7', label: 'True' },
+    { id: 'e11', source: 'n6', sourceHandle: 'false', target: 'n8', label: 'False' },
+    { id: 'e12', source: 'n7', sourceHandle: 'out', target: 'n8', label: '' },
+    { id: 'e13', source: 'n8', sourceHandle: 'out', target: 'n9', label: '' },
+  ],
+  annotations: [
+    { id: 'a1', type: 'text', label: 'Concrete Pour Approval', data: { fontSize: 28 }, position: { x: 0, y: 60 } },
+    { id: 'a2', type: 'frame', label: 'Approval loop', data: { color: 'blue' }, position: { x: 560, y: 150 }, size: { width: 620, height: 380 } },
+    { id: 'a3', type: 'sticky', label: '', data: { text: 'Rejected method statements go back to the site engineer for revision, then are re-submitted.', color: 'yellow' }, position: { x: 600, y: 600 }, size: { width: 240, height: 130 } },
+  ],
+  layout: {
+    n1: { x: 0, y: 200 },
+    n2: { x: 290, y: 200 },
+    n3: { x: 30, y: 60, parentId: 'a2' },
+    n4: { x: 340, y: 60, parentId: 'a2' },
+    n10: { x: 340, y: 240, parentId: 'a2' },
+    n5: { x: 1240, y: 200 },
+    n11: { x: 1240, y: 420 },
+    n6: { x: 1540, y: 200 },
+    n7: { x: 1840, y: 60 },
+    n8: { x: 2140, y: 200 },
+    n9: { x: 2440, y: 200 },
+  },
+};
+
+export const sampleWorkflow = (): WorkflowDoc => cloneDoc(fromJson(SAMPLE));
+export const SAMPLE_JSON = SAMPLE;

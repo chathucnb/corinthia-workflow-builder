@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://corinthia.local/schemas/workflow/1.0/bundle.schema.json",
+  "title": "Corinthia Workflow Bundle",
+  "description": "Several workflows in one file: \"Backup all\" from the home screen, or \"With N linked\" from the JSON panel.",
+  "type": "object",
+  "required": [
+    "kind",
+    "exportedAt",
+    "workflows"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "const": "corinthia-workflow-bundle"
+    },
+    "exportedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "workflows": {
+      "type": "array",
+      "items": {
+        "$ref": "workflow.schema.json"
+      }
+    }
+  }
+}

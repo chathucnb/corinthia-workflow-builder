@@ -1,0 +1,736 @@
+{
+  "schemaVersion": "1.0",
+  "blocks": [
+    {
+      "type": "start",
+      "category": "logic",
+      "label": "Start",
+      "description": "Entry point of the workflow",
+      "hasInput": false,
+      "outputs": "\"out\"",
+      "defaultOutputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "defaults": {
+        "trigger": "manual"
+      },
+      "fields": [
+        {
+          "key": "trigger",
+          "label": "Trigger",
+          "kind": "select",
+          "required": false,
+          "options": [
+            "manual",
+            "form",
+            "schedule",
+            "event"
+          ]
+        },
+        {
+          "key": "event",
+          "label": "Event name",
+          "kind": "text",
+          "required": false
+        },
+        {
+          "key": "schedule",
+          "label": "Schedule",
+          "kind": "text",
+          "required": false
+        }
+      ]
+    },
+    {
+      "type": "task",
+      "category": "logic",
+      "label": "Task",
+      "description": "A unit of work to be done",
+      "hasInput": true,
+      "outputs": "\"out\"",
+      "defaultOutputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "defaults": {
+        "assigneeRole": "",
+        "description": "",
+        "durationHours": null
+      },
+      "fields": [
+        {
+          "key": "assigneeRole",
+          "label": "Assignee role",
+          "kind": "text",
+          "required": false
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "kind": "textarea",
+          "required": false
+        },
+        {
+          "key": "durationHours",
+          "label": "Est. duration (hours)",
+          "kind": "number",
+          "required": false
+        }
+      ]
+    },
+    {
+      "type": "condition",
+      "category": "logic",
+      "label": "Condition",
+      "description": "If / else branch based on rules",
+      "hasInput": true,
+      "outputs": "\"true\", \"false\"",
+      "defaultOutputs": [
+        {
+          "id": "true",
+          "label": "True"
+        },
+        {
+          "id": "false",
+          "label": "False"
+        }
+      ],
+      "defaults": {
+        "condition": {
+          "logic": "AND",
+          "rules": []
+        }
+      },
+      "fields": [
+        {
+          "key": "condition",
+          "label": "Rules",
+          "kind": "rules",
+          "required": true
+        }
+      ]
+    },
+    {
+      "type": "switch",
+      "category": "logic",
+      "label": "Switch",
+      "description": "Route by the value of a variable",
+      "hasInput": true,
+      "outputs": "One output per case (id = case id), plus \"default\" when hasDefault is true.",
+      "defaultOutputs": [
+        {
+          "id": "case_1",
+          "label": "A"
+        },
+        {
+          "id": "case_2",
+          "label": "B"
+        },
+        {
+          "id": "default",
+          "label": "Default"
+        }
+      ],
+      "defaults": {
+        "variable": "",
+        "cases": [
+          {
+            "id": "case_1",
+            "value": "A",
+            "label": ""
+          },
+          {
+            "id": "case_2",
+            "value": "B",
+            "label": ""
+          }
+        ],
+        "hasDefault": true
+      },
+      "fields": [
+        {
+          "key": "variable",
+          "label": "Variable",
+          "kind": "variable",
+          "required": true
+        },
+        {
+          "key": "cases",
+          "label": "Cases",
+          "kind": "cases",
+          "required": false
+        },
+        {
+          "key": "hasDefault",
+          "label": "Include default branch",
+          "kind": "checkbox",
+          "required": false
+        }
+      ]
+    },
+    {
+      "type": "loop",
+      "category": "logic",
+      "label": "Loop",
+      "description": "Repeat the body branch",
+      "hasInput": true,
+      "outputs": "\"body\", \"done\"",
+      "defaultOutputs": [
+        {
+          "id": "body",
+          "label": "Each"
+        },
+        {
+          "id": "done",
+          "label": "Done"
+        }
+      ],
+      "defaults": {
+        "mode": "forEach",
+        "collection": "",
+        "itemVariable": "item",
+        "condition": {
+          "logic": "AND",
+          "rules": []
+        },
+        "maxIterations": 100
+      },
+      "fields": [
+        {
+          "key": "mode",
+          "label": "Mode",
+          "kind": "select",
+          "required": false,
+          "options": [
+            "forEach",
+            "while",
+            "count"
+          ]
+        },
+        {
+          "key": "collection",
+          "label": "List variable",
+          "kind": "variable",
+          "required": true
+        },
+        {
+          "key": "itemVariable",
+          "label": "Item name",
+          "kind": "text",
+          "required": false
+        },
+        {
+          "key": "condition",
+          "label": "While",
+          "kind": "rules",
+          "required": false
+        },
+        {
+          "key": "maxIterations",
+          "label": "Max iterations",
+          "kind": "number",
+          "required": false
+        }
+      ]
+    },
+    {
+      "type": "parallel",
+      "category": "logic",
+      "label": "Parallel Split",
+      "description": "Run several branches at the same time",
+      "hasInput": true,
+      "outputs": "\"branch_1\" … \"branch_N\" where N = branches.",
+      "defaultOutputs": [
+        {
+          "id": "branch_1",
+          "label": "Branch 1"
+        },
+        {
+          "id": "branch_2",
+          "label": "Branch 2"
+        }
+      ],
+      "defaults": {
+        "branches": 2
+      },
+      "fields": [
+        {
+          "key": "branches",
+          "label": "Number of branches (2–8)",
+          "kind": "number",
+          "required": false
+        }
+      ]
+    },
+    {
+      "type": "join",
+      "category": "logic",
+      "label": "Join",
+      "description": "Wait for parallel branches to finish",
+      "hasInput": true,
+      "outputs": "\"out\"",
+      "defaultOutputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "defaults": {
+        "mode": "all"
+      },
+      "fields": [
+        {
+          "key": "mode",
+          "label": "Continue when",
+          "kind": "select",
+          "required": false,
+          "options": [
+            "all",
+            "any"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "delay",
+      "category": "logic",
+      "label": "Delay",
+      "description": "Wait for a period of time",
+      "hasInput": true,
+      "outputs": "\"out\"",
+      "defaultOutputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "defaults": {
+        "amount": 1,
+        "unit": "days"
+      },
+      "fields": [
+        {
+          "key": "amount",
+          "label": "Amount",
+          "kind": "number",
+          "required": true
+        },
+        {
+          "key": "unit",
+          "label": "Unit",
+          "kind": "select",
+          "required": false,
+          "options": [
+            "minutes",
+            "hours",
+            "days",
+            "weeks"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "end",
+      "category": "logic",
+      "label": "End",
+      "description": "Workflow finishes here",
+      "hasInput": true,
+      "outputs": "None (terminal block).",
+      "defaultOutputs": [],
+      "defaults": {
+        "status": "completed"
+      },
+      "fields": [
+        {
+          "key": "status",
+          "label": "Outcome",
+          "kind": "select",
+          "required": false,
+          "options": [
+            "completed",
+            "rejected",
+            "cancelled"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "setVariable",
+      "category": "data",
+      "label": "Set Variable",
+      "description": "Assign a value to a variable",
+      "hasInput": true,
+      "outputs": "\"out\"",
+      "defaultOutputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "defaults": {
+        "variable": "",
+        "value": ""
+      },
+      "fields": [
+        {
+          "key": "variable",
+          "label": "Variable",
+          "kind": "variable",
+          "required": true
+        },
+        {
+          "key": "value",
+          "label": "Value",
+          "kind": "text",
+          "required": false
+        }
+      ]
+    },
+    {
+      "type": "form",
+      "category": "data",
+      "label": "Input Form",
+      "description": "Collect data from a person",
+      "hasInput": true,
+      "outputs": "\"out\"",
+      "defaultOutputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "defaults": {
+        "assigneeRole": "",
+        "fields": [
+          {
+            "name": "notes",
+            "label": "Notes",
+            "type": "string",
+            "required": false,
+            "variable": ""
+          }
+        ]
+      },
+      "fields": [
+        {
+          "key": "assigneeRole",
+          "label": "Filled in by",
+          "kind": "text",
+          "required": false
+        },
+        {
+          "key": "fields",
+          "label": "Form fields",
+          "kind": "formFields",
+          "required": false
+        }
+      ]
+    },
+    {
+      "type": "expression",
+      "category": "data",
+      "label": "Expression",
+      "description": "Calculate a value into a variable",
+      "hasInput": true,
+      "outputs": "\"out\"",
+      "defaultOutputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "defaults": {
+        "variable": "",
+        "expression": ""
+      },
+      "fields": [
+        {
+          "key": "variable",
+          "label": "Store result in",
+          "kind": "variable",
+          "required": true
+        },
+        {
+          "key": "expression",
+          "label": "Expression",
+          "kind": "textarea",
+          "required": true
+        }
+      ]
+    },
+    {
+      "type": "approval",
+      "category": "construction",
+      "label": "Approval",
+      "description": "A role approves or rejects",
+      "hasInput": true,
+      "outputs": "\"approved\", \"rejected\"",
+      "defaultOutputs": [
+        {
+          "id": "approved",
+          "label": "Approved"
+        },
+        {
+          "id": "rejected",
+          "label": "Rejected"
+        }
+      ],
+      "defaults": {
+        "role": "",
+        "slaHours": 24,
+        "instructions": "",
+        "requireComment": false
+      },
+      "fields": [
+        {
+          "key": "role",
+          "label": "Approver role",
+          "kind": "text",
+          "required": true
+        },
+        {
+          "key": "slaHours",
+          "label": "SLA (hours)",
+          "kind": "number",
+          "required": false
+        },
+        {
+          "key": "instructions",
+          "label": "Instructions",
+          "kind": "textarea",
+          "required": false
+        },
+        {
+          "key": "requireComment",
+          "label": "Comment required on reject",
+          "kind": "checkbox",
+          "required": false
+        }
+      ]
+    },
+    {
+      "type": "inspection",
+      "category": "construction",
+      "label": "Inspection",
+      "description": "Checklist inspection with pass / fail",
+      "hasInput": true,
+      "outputs": "\"pass\", \"fail\"",
+      "defaultOutputs": [
+        {
+          "id": "pass",
+          "label": "Pass"
+        },
+        {
+          "id": "fail",
+          "label": "Fail"
+        }
+      ],
+      "defaults": {
+        "assigneeRole": "",
+        "checklist": [],
+        "photosRequired": false
+      },
+      "fields": [
+        {
+          "key": "assigneeRole",
+          "label": "Inspector role",
+          "kind": "text",
+          "required": true
+        },
+        {
+          "key": "checklist",
+          "label": "Checklist items",
+          "kind": "stringList",
+          "required": false
+        },
+        {
+          "key": "photosRequired",
+          "label": "Photos required",
+          "kind": "checkbox",
+          "required": false
+        }
+      ]
+    },
+    {
+      "type": "document",
+      "category": "construction",
+      "label": "Document",
+      "description": "Submit or review a document",
+      "hasInput": true,
+      "outputs": "\"out\"",
+      "defaultOutputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "defaults": {
+        "docType": "",
+        "action": "upload",
+        "required": true,
+        "description": ""
+      },
+      "fields": [
+        {
+          "key": "docType",
+          "label": "Document type",
+          "kind": "text",
+          "required": true
+        },
+        {
+          "key": "action",
+          "label": "Action",
+          "kind": "select",
+          "required": false,
+          "options": [
+            "upload",
+            "review",
+            "generate",
+            "sign"
+          ]
+        },
+        {
+          "key": "required",
+          "label": "Mandatory",
+          "kind": "checkbox",
+          "required": false
+        },
+        {
+          "key": "description",
+          "label": "Notes",
+          "kind": "textarea",
+          "required": false
+        }
+      ]
+    },
+    {
+      "type": "assign",
+      "category": "construction",
+      "label": "Assign to Role",
+      "description": "Hand work over to a role / department",
+      "hasInput": true,
+      "outputs": "\"out\"",
+      "defaultOutputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "defaults": {
+        "role": "",
+        "department": "",
+        "task": "",
+        "dueInDays": null
+      },
+      "fields": [
+        {
+          "key": "role",
+          "label": "Role",
+          "kind": "text",
+          "required": true
+        },
+        {
+          "key": "department",
+          "label": "Department",
+          "kind": "text",
+          "required": false
+        },
+        {
+          "key": "task",
+          "label": "Task",
+          "kind": "textarea",
+          "required": false
+        },
+        {
+          "key": "dueInDays",
+          "label": "Due in (days)",
+          "kind": "number",
+          "required": false
+        }
+      ]
+    },
+    {
+      "type": "notification",
+      "category": "construction",
+      "label": "Notification",
+      "description": "Notify a role",
+      "hasInput": true,
+      "outputs": "\"out\"",
+      "defaultOutputs": [
+        {
+          "id": "out",
+          "label": ""
+        }
+      ],
+      "defaults": {
+        "recipientRole": "",
+        "channel": "email",
+        "message": ""
+      },
+      "fields": [
+        {
+          "key": "recipientRole",
+          "label": "Recipient role",
+          "kind": "text",
+          "required": true
+        },
+        {
+          "key": "channel",
+          "label": "Channel",
+          "kind": "select",
+          "required": false,
+          "options": [
+            "email",
+            "sms",
+            "inApp",
+            "whatsapp"
+          ]
+        },
+        {
+          "key": "message",
+          "label": "Message",
+          "kind": "textarea",
+          "required": false
+        }
+      ]
+    },
+    {
+      "type": "subworkflow",
+      "category": "construction",
+      "label": "Linked Workflow",
+      "description": "Connect to another saved workflow",
+      "hasInput": true,
+      "outputs": "mode \"call\": one output per outcome (id = End block id in the linked workflow), or \"out\" if it has none. mode \"handoff\": none.",
+      "defaultOutputs": [],
+      "defaults": {
+        "workflowId": "",
+        "workflowName": "",
+        "mode": "call",
+        "outcomes": []
+      },
+      "fields": [
+        {
+          "key": "workflowId",
+          "label": "Workflow",
+          "kind": "workflowRef",
+          "required": true
+        },
+        {
+          "key": "mode",
+          "label": "How to connect",
+          "kind": "select",
+          "required": false,
+          "options": [
+            "call",
+            "handoff"
+          ]
+        }
+      ]
+    }
+  ]
+}

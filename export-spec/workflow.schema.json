@@ -1,0 +1,1265 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://corinthia.local/schemas/workflow/1.0/workflow.schema.json",
+  "title": "Corinthia Workflow",
+  "description": "One workflow exported by the Corinthia Workflow Builder. Execution logic is in variables, nodes and edges. annotations and layout are canvas-only and can be ignored by an execution engine.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "id",
+    "name",
+    "version",
+    "updatedAt",
+    "variables",
+    "nodes",
+    "edges"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0",
+      "description": "Format version. Breaking changes bump the major number."
+    },
+    "id": {
+      "type": "string",
+      "description": "Stable workflow id (e.g. \"wf_1a2b3c4d5e\"). Use it as the key in the target system."
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string",
+      "default": ""
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Increases by 1 every time the workflow is saved to a file."
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "variables": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/variable"
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/edge"
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "default": [],
+      "description": "Other workflows this one links to through \"subworkflow\" nodes.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "annotations": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/annotation"
+      },
+      "description": "Canvas-only notes, frames and labels."
+    },
+    "layout": {
+      "type": "object",
+      "default": {},
+      "description": "Canvas position per node id (canvas-only).",
+      "additionalProperties": {
+        "$ref": "#/$defs/layoutEntry"
+      }
+    }
+  },
+  "$defs": {
+    "variable": {
+      "type": "object",
+      "required": [
+        "name",
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "type": {
+          "enum": [
+            "string",
+            "number",
+            "boolean",
+            "date",
+            "list",
+            "file"
+          ]
+        },
+        "default": {
+          "default": null,
+          "description": "Initial value. A \"list\" variable may default to an array.",
+          "anyOf": [
+            {
+              "type": [
+                "string",
+                "number",
+                "boolean",
+                "null"
+              ]
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean"
+                ]
+              }
+            }
+          ]
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "port": {
+      "type": "object",
+      "required": [
+        "id",
+        "label"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        }
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "category",
+        "label",
+        "data",
+        "outputs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "start",
+            "task",
+            "condition",
+            "switch",
+            "loop",
+            "parallel",
+            "join",
+            "delay",
+            "end",
+            "setVariable",
+            "form",
+            "expression",
+            "approval",
+            "inspection",
+            "document",
+            "assign",
+            "notification",
+            "subworkflow"
+          ]
+        },
+        "category": {
+          "enum": [
+            "logic",
+            "data",
+            "construction"
+          ]
+        },
+        "label": {
+          "type": "string"
+        },
+        "data": {
+          "type": "object"
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/port"
+          },
+          "description": "The node's output ports. Edges leave a node through one of these ids (edge.sourceHandle)."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "start"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "category": {
+                "const": "logic"
+              },
+              "data": {
+                "$ref": "#/$defs/data_start"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "task"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "category": {
+                "const": "logic"
+              },
+              "data": {
+                "$ref": "#/$defs/data_task"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "condition"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "category": {
+                "const": "logic"
+              },
+              "data": {
+                "$ref": "#/$defs/data_condition"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "switch"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "category": {
+                "const": "logic"
+              },
+              "data": {
+                "$ref": "#/$defs/data_switch"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "loop"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "category": {
+                "const": "logic"
+              },
+              "data": {
+                "$ref": "#/$defs/data_loop"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "parallel"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "category": {
+                "const": "logic"
+              },
+              "data": {
+                "$ref": "#/$defs/data_parallel"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "join"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "category": {
+                "const": "logic"
+              },
+              "data": {
+                "$ref": "#/$defs/data_join"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "delay"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "category": {
+                "const": "logic"
+              },
+              "data": {
+                "$ref": "#/$defs/data_delay"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "end"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "category": {
+                "const": "logic"
+              },
+              "data": {
+                "$ref": "#/$defs/data_end"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "setVariable"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "category": {
+                "const": "data"
+              },
+              "data": {
+                "$ref": "#/$defs/data_setVariable"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "form"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "category": {
+                "const": "data"
+              },
+              "data": {
+                "$ref": "#/$defs/data_form"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "expression"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "category": {
+                "const": "data"
+              },
+              "data": {
+                "$ref": "#/$defs/data_expression"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "approval"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "category": {
+                "const": "construction"
+              },
+              "data": {
+                "$ref": "#/$defs/data_approval"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "inspection"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "category": {
+                "const": "construction"
+              },
+              "data": {
+                "$ref": "#/$defs/data_inspection"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "document"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "category": {
+                "const": "construction"
+              },
+              "data": {
+                "$ref": "#/$defs/data_document"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "assign"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "category": {
+                "const": "construction"
+              },
+              "data": {
+                "$ref": "#/$defs/data_assign"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "notification"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "category": {
+                "const": "construction"
+              },
+              "data": {
+                "$ref": "#/$defs/data_notification"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "subworkflow"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "properties": {
+              "category": {
+                "const": "construction"
+              },
+              "data": {
+                "$ref": "#/$defs/data_subworkflow"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "data_start": {
+      "title": "Start data",
+      "description": "Entry point of the workflow. Outputs: \"out\"",
+      "type": "object",
+      "properties": {
+        "trigger": {
+          "enum": [
+            "manual",
+            "form",
+            "schedule",
+            "event"
+          ],
+          "description": "Trigger"
+        },
+        "event": {
+          "type": "string",
+          "description": "Event name"
+        },
+        "schedule": {
+          "type": "string",
+          "description": "Schedule"
+        }
+      },
+      "additionalProperties": true
+    },
+    "data_task": {
+      "title": "Task data",
+      "description": "A unit of work to be done. Outputs: \"out\"",
+      "type": "object",
+      "properties": {
+        "assigneeRole": {
+          "type": "string",
+          "description": "Assignee role"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description"
+        },
+        "durationHours": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Est. duration (hours)"
+        }
+      },
+      "additionalProperties": true
+    },
+    "data_condition": {
+      "title": "Condition data",
+      "description": "If / else branch based on rules. Outputs: \"true\", \"false\"",
+      "type": "object",
+      "properties": {
+        "condition": {
+          "$ref": "#/$defs/ruleGroup",
+          "description": "Rules (required for a valid workflow)"
+        }
+      },
+      "additionalProperties": true
+    },
+    "data_switch": {
+      "title": "Switch data",
+      "description": "Route by the value of a variable. Outputs: One output per case (id = case id), plus \"default\" when hasDefault is true.",
+      "type": "object",
+      "properties": {
+        "variable": {
+          "type": "string",
+          "description": "Variable (required for a valid workflow). Name of a declared variable, or \"\" if not set."
+        },
+        "cases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/switchCase"
+          },
+          "description": "Cases"
+        },
+        "hasDefault": {
+          "type": "boolean",
+          "description": "Include default branch"
+        }
+      },
+      "additionalProperties": true
+    },
+    "data_loop": {
+      "title": "Loop data",
+      "description": "Repeat the body branch. Outputs: \"body\", \"done\"",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": [
+            "forEach",
+            "while",
+            "count"
+          ],
+          "description": "Mode"
+        },
+        "collection": {
+          "type": "string",
+          "description": "List variable (required for a valid workflow). Name of a declared variable, or \"\" if not set."
+        },
+        "itemVariable": {
+          "type": "string",
+          "description": "Item name"
+        },
+        "condition": {
+          "$ref": "#/$defs/ruleGroup",
+          "description": "While"
+        },
+        "maxIterations": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Max iterations"
+        }
+      },
+      "additionalProperties": true
+    },
+    "data_parallel": {
+      "title": "Parallel Split data",
+      "description": "Run several branches at the same time. Outputs: \"branch_1\" … \"branch_N\" where N = branches.",
+      "type": "object",
+      "properties": {
+        "branches": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Number of branches (2–8)"
+        }
+      },
+      "additionalProperties": true
+    },
+    "data_join": {
+      "title": "Join data",
+      "description": "Wait for parallel branches to finish. Outputs: \"out\"",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": [
+            "all",
+            "any"
+          ],
+          "description": "Continue when"
+        }
+      },
+      "additionalProperties": true
+    },
+    "data_delay": {
+      "title": "Delay data",
+      "description": "Wait for a period of time. Outputs: \"out\"",
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Amount (required for a valid workflow)"
+        },
+        "unit": {
+          "enum": [
+            "minutes",
+            "hours",
+            "days",
+            "weeks"
+          ],
+          "description": "Unit"
+        }
+      },
+      "additionalProperties": true
+    },
+    "data_end": {
+      "title": "End data",
+      "description": "Workflow finishes here. Outputs: None (terminal block).",
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "completed",
+            "rejected",
+            "cancelled"
+          ],
+          "description": "Outcome"
+        }
+      },
+      "additionalProperties": true
+    },
+    "data_setVariable": {
+      "title": "Set Variable data",
+      "description": "Assign a value to a variable. Outputs: \"out\"",
+      "type": "object",
+      "properties": {
+        "variable": {
+          "type": "string",
+          "description": "Variable (required for a valid workflow). Name of a declared variable, or \"\" if not set."
+        },
+        "value": {
+          "description": "Value to assign: a typed value (number, true/false, list) or text, which may contain {{variable}} placeholders",
+          "anyOf": [
+            {
+              "type": [
+                "string",
+                "number",
+                "boolean",
+                "null"
+              ]
+            },
+            {
+              "type": "array"
+            }
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "data_form": {
+      "title": "Input Form data",
+      "description": "Collect data from a person. Outputs: \"out\"",
+      "type": "object",
+      "properties": {
+        "assigneeRole": {
+          "type": "string",
+          "description": "Filled in by"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/formField"
+          },
+          "description": "Form fields"
+        }
+      },
+      "additionalProperties": true
+    },
+    "data_expression": {
+      "title": "Expression data",
+      "description": "Calculate a value into a variable. Outputs: \"out\"",
+      "type": "object",
+      "properties": {
+        "variable": {
+          "type": "string",
+          "description": "Store result in (required for a valid workflow). Name of a declared variable, or \"\" if not set."
+        },
+        "expression": {
+          "type": "string",
+          "description": "Expression (required for a valid workflow). Reference variables as {{name}}"
+        }
+      },
+      "additionalProperties": true
+    },
+    "data_approval": {
+      "title": "Approval data",
+      "description": "A role approves or rejects. Outputs: \"approved\", \"rejected\"",
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "description": "Approver role (required for a valid workflow)"
+        },
+        "slaHours": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "SLA (hours)"
+        },
+        "instructions": {
+          "type": "string",
+          "description": "Instructions"
+        },
+        "requireComment": {
+          "type": "boolean",
+          "description": "Comment required on reject"
+        }
+      },
+      "additionalProperties": true
+    },
+    "data_inspection": {
+      "title": "Inspection data",
+      "description": "Checklist inspection with pass / fail. Outputs: \"pass\", \"fail\"",
+      "type": "object",
+      "properties": {
+        "assigneeRole": {
+          "type": "string",
+          "description": "Inspector role (required for a valid workflow)"
+        },
+        "checklist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Checklist items"
+        },
+        "photosRequired": {
+          "type": "boolean",
+          "description": "Photos required"
+        }
+      },
+      "additionalProperties": true
+    },
+    "data_document": {
+      "title": "Document data",
+      "description": "Submit or review a document. Outputs: \"out\"",
+      "type": "object",
+      "properties": {
+        "docType": {
+          "type": "string",
+          "description": "Document type (required for a valid workflow)"
+        },
+        "action": {
+          "enum": [
+            "upload",
+            "review",
+            "generate",
+            "sign"
+          ],
+          "description": "Action"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Mandatory"
+        },
+        "description": {
+          "type": "string",
+          "description": "Notes"
+        }
+      },
+      "additionalProperties": true
+    },
+    "data_assign": {
+      "title": "Assign to Role data",
+      "description": "Hand work over to a role / department. Outputs: \"out\"",
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "description": "Role (required for a valid workflow)"
+        },
+        "department": {
+          "type": "string",
+          "description": "Department"
+        },
+        "task": {
+          "type": "string",
+          "description": "Task"
+        },
+        "dueInDays": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "Due in (days)"
+        }
+      },
+      "additionalProperties": true
+    },
+    "data_notification": {
+      "title": "Notification data",
+      "description": "Notify a role. Outputs: \"out\"",
+      "type": "object",
+      "properties": {
+        "recipientRole": {
+          "type": "string",
+          "description": "Recipient role (required for a valid workflow)"
+        },
+        "channel": {
+          "enum": [
+            "email",
+            "sms",
+            "inApp",
+            "whatsapp"
+          ],
+          "description": "Channel"
+        },
+        "message": {
+          "type": "string",
+          "description": "Message"
+        }
+      },
+      "additionalProperties": true
+    },
+    "data_subworkflow": {
+      "title": "Linked Workflow data",
+      "description": "Connect to another saved workflow. Outputs: mode \"call\": one output per outcome (id = End block id in the linked workflow), or \"out\" if it has none. mode \"handoff\": none.",
+      "type": "object",
+      "properties": {
+        "workflowId": {
+          "type": "string",
+          "description": "Workflow (required for a valid workflow). Id of another workflow (see \"dependencies\")."
+        },
+        "mode": {
+          "enum": [
+            "call",
+            "handoff"
+          ],
+          "description": "How to connect. Run: one output appears per End block of the linked workflow."
+        },
+        "workflowName": {
+          "type": "string",
+          "description": "Name of the linked workflow when it was linked"
+        },
+        "outcomes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/port"
+          },
+          "description": "Outcomes of the linked workflow (its End blocks)"
+        }
+      },
+      "additionalProperties": true
+    },
+    "edge": {
+      "type": "object",
+      "required": [
+        "id",
+        "source",
+        "sourceHandle",
+        "target"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string",
+          "description": "Source node id"
+        },
+        "sourceHandle": {
+          "type": "string",
+          "description": "Output port id on the source node (one of its outputs[].id)"
+        },
+        "target": {
+          "type": "string",
+          "description": "Target node id"
+        },
+        "label": {
+          "type": "string",
+          "default": ""
+        }
+      }
+    },
+    "ruleGroup": {
+      "type": "object",
+      "required": [
+        "logic",
+        "rules"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "logic": {
+          "enum": [
+            "AND",
+            "OR"
+          ]
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/rule"
+          }
+        }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "required": [
+        "var",
+        "op"
+      ],
+      "additionalProperties": false,
+      "description": "\"between\" takes value [min, max]; isEmpty/isNotEmpty/isTrue/isFalse take no value.",
+      "properties": {
+        "var": {
+          "type": "string",
+          "description": "Variable name"
+        },
+        "op": {
+          "enum": [
+            "==",
+            "!=",
+            ">",
+            ">=",
+            "<",
+            "<=",
+            "contains",
+            "between",
+            "isEmpty",
+            "isNotEmpty",
+            "isTrue",
+            "isFalse"
+          ]
+        },
+        "value": {}
+      }
+    },
+    "switchCase": {
+      "type": "object",
+      "required": [
+        "id",
+        "value"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Also the output port id"
+        },
+        "value": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        }
+      }
+    },
+    "formField": {
+      "type": "object",
+      "required": [
+        "name",
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "string",
+            "number",
+            "boolean",
+            "date",
+            "list",
+            "file"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "variable": {
+          "type": "string",
+          "description": "Variable that receives the answer (\"\" = none)"
+        }
+      }
+    },
+    "annotation": {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "data",
+        "position"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "sticky",
+            "frame",
+            "text"
+          ]
+        },
+        "label": {
+          "type": "string"
+        },
+        "data": {
+          "type": "object"
+        },
+        "position": {
+          "$ref": "#/$defs/xy"
+        },
+        "size": {
+          "type": "object",
+          "required": [
+            "width",
+            "height"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "width": {
+              "type": "number"
+            },
+            "height": {
+              "type": "number"
+            }
+          }
+        },
+        "parentId": {
+          "type": "string"
+        }
+      }
+    },
+    "xy": {
+      "type": "object",
+      "required": [
+        "x",
+        "y"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      }
+    },
+    "layoutEntry": {
+      "type": "object",
+      "required": [
+        "x",
+        "y"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "parentId": {
+          "type": "string",
+          "description": "Frame the node sits in; x/y are then relative to it"
+        }
+      }
+    }
+  }
+}

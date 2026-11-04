@@ -1,0 +1,7 @@
+node_modules
+dist
+*.log
+# local-only: company workflow exports, generated zip, editor config
+exports/
+*.zip
+.claude/
